@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
   phone: { type: Number, required: true },
   vehicleType: { type: String, required: true },
   role: { type: String, enum: ["Admin", "User"], default: "User" },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
