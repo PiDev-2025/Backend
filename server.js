@@ -1,10 +1,31 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
-const port = process.env.PORT || 3001; // Change port to 3001
+const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
 var http = require('http')
 
 connectDB();
+
+// CORS configuration
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', true);
+  next();
+});
 
 app.use(express.json());
 const claimRoutes = require("./src/routes/claimRoutes"); 
@@ -28,6 +49,9 @@ app.use("/api", passwordRoutes);
 app.get("/", (req, res) => {
   res.send("MongoDB is connected to Express!");
 });
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 var server = http.createServer(app)
 server.listen(port,()=>{
