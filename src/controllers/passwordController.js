@@ -7,7 +7,7 @@ exports.sendResetPasswordEmail = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).send('User not found');
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const token = crypto.randomBytes(20).toString('hex');
@@ -15,21 +15,41 @@ exports.sendResetPasswordEmail = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `http://${req.headers.host}/reset-password/${token}`;
-    const message = `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
-                     Please click on the following link, or paste this into your browser to complete the process:\n\n
-                     ${resetUrl}\n\n
-                     If you did not request this, please ignore this email and your password will remain unchanged.\n`;
+    // Force the frontend URL without using any variables
+    const resetUrl = 'http://localhost:3000/reset-password/' + token;
+    
+    const message = `
+Hello,
+
+You requested a password reset for your account.
+
+Please click the following link to reset your password:
+${resetUrl}
+
+This link will expire in 1 hour.
+
+If you did not request this reset, please ignore this email.
+
+Best regards,
+Your App Team`;
 
     await sendEmail({
       email: user.email,
-      subject: 'Password Reset',
+      subject: 'Password Reset Request',
       message,
     });
 
-    res.status(200).send('Reset password email sent');
+    res.status(200).json({ 
+      message: 'Password reset email sent successfully',
+      success: true,
+      resetUrl // Include the URL in the response for debugging
+    });
   } catch (error) {
-    res.status(500).send('Error sending email');
+    console.error('Error:', error);
+    res.status(500).json({ 
+      message: 'Error sending password reset email',
+      success: false 
+    });
   }
 };
 
@@ -43,7 +63,7 @@ exports.resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).send('Password reset token is invalid or has expired');
+      return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
     }
 
     user.password = password;
@@ -51,8 +71,8 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.status(200).send('Password has been reset');
+    res.status(200).json({ message: 'Password has been reset' });
   } catch (error) {
-    res.status(500).send('Error resetting password');
+    res.status(500).json({ message: 'Error resetting password' });
   }
 };
