@@ -7,7 +7,7 @@ const sendEmail = async (options) => {
       user: 'Marwaniwael88@gmail.com', 
       pass: 'vhgt kjkc gkbi rbkr', 
     },
-  });
+  }); 
 
   const mailOptions = {
     from: 'Marwaniwael88@gmail.com',
