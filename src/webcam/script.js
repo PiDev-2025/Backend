@@ -4,40 +4,46 @@ Promise.all([
   faceapi.nets.ssdMobilenetv1.loadFromUri("/src/webcam/models"),
   faceapi.nets.faceRecognitionNet.loadFromUri("/src/webcam/models"),
   faceapi.nets.faceLandmark68Net.loadFromUri("/src/webcam/models"),
-]).then(startWebcam);
+])
+  .then(startWebcam)
+  .catch((error) => {
+    console.error("Error loading face-api.js models:", error);
+  });
 
 function startWebcam() {
   navigator.mediaDevices
-    .getUserMedia({ video: true, audio: false })
+    .getUserMedia({
+      video: true,
+      audio: false,
+    })
     .then((stream) => {
       video.srcObject = stream;
     })
     .catch((error) => {
-      console.error(error);
+      console.error("Error accessing webcam:", error);
     });
 }
 
 async function getLabeledFaceDescriptions() {
-  const labels = ["nassim"]; // Nom du dossier contenant les photos
+  const labels = ["nassim", "iheb", "mouheb"];
+
   return Promise.all(
     labels.map(async (label) => {
       const descriptions = [];
-      for (let i = 1; i <= 3; i++) {
-        // Charge plusieurs images
-        try {
-          const img = await faceapi.fetchImage(
-            `./assets/${label}/${label}${i}.jpg`
-          );
-          const detections = await faceapi
-            .detectSingleFace(img)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-          if (detections) {
-            descriptions.push(detections.descriptor);
-          }
-        } catch (error) {
-          console.warn(`Erreur de chargement pour ${label}${i}.jpg`);
+      try {
+        const img = await faceapi.fetchImage(`./labels/${label}.jpg`);
+        const detections = await faceapi
+          .detectSingleFace(img)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (detections) {
+          descriptions.push(detections.descriptor);
+        } else {
+          console.warn(`No face detected in image for ${label}.`);
         }
+      } catch (error) {
+        console.error(`Error loading image for ${label}:`, error);
       }
       return new faceapi.LabeledFaceDescriptors(label, descriptions);
     })
@@ -46,12 +52,14 @@ async function getLabeledFaceDescriptions() {
 
 video.addEventListener("play", async () => {
   const labeledFaceDescriptors = await getLabeledFaceDescriptions();
-  const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6); // Tolérance ajustable
+  console.log("Labeled Face Descriptors Loaded:", labeledFaceDescriptors);
+
+  const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
 
   const canvas = faceapi.createCanvasFromMedia(video);
   document.body.append(canvas);
 
-  const displaySize = { width: video.width, height: video.height };
+  const displaySize = { width: video.videoWidth, height: video.videoHeight };
   faceapi.matchDimensions(canvas, displaySize);
 
   setInterval(async () => {
@@ -59,28 +67,32 @@ video.addEventListener("play", async () => {
       .detectAllFaces(video)
       .withFaceLandmarks()
       .withFaceDescriptors();
+
     const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 
-    const results = resizedDetections.map((d) =>
-      faceMatcher.findBestMatch(d.descriptor)
-    );
+    let recognized = false;
 
-    results.forEach((result, i) => {
-      const box = resizedDetections[i].detection.box;
-      const label =
-        result.label === "unknown"
-          ? "Visage inconnu ❌"
-          : `✅ Reconnu : ${result.label}`;
+    resizedDetections.forEach((detection) => {
+      const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+      console.log("Best Match:", bestMatch);
 
-      if (result.label === "unknown") {
-        alert("⚠ Visage inconnu !");
+      const box = detection.detection.box;
+
+      let label = bestMatch.label;
+      if (bestMatch.distance > 0.5) {
+        label = "Unknown";
       } else {
-        alert(`🎉 Visage reconnu : ${result.label}`);
+        recognized = true;
       }
 
-      new faceapi.draw.DrawBox(box, { label }).draw(canvas);
+      const drawBox = new faceapi.draw.DrawBox(box, { label });
+      drawBox.draw(canvas);
     });
-  }, 1000); // Vérification toutes les 1s
+
+    if (recognized) {
+      window.location.href = "http://localhost:3000";
+    }
+  }, 1000);
 });
