@@ -1,7 +1,7 @@
 const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const sendEmail = require("../utils/sendEmail");
+const sendEmail = require("../utils/SignUpMailVerif");
 
 // Fonction pour générer un OTP aléatoire
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -13,28 +13,34 @@ const signup = async (req, res) => {
   const { name, email, password, phone, role, vehicleType } = req.body;
 
   try {
+    // Vérification si l'utilisateur existe déjà
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: "Utilisateur déjà existant" });
 
+    // Hachage du mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Expire en 10 min
 
-    // Stocker l'utilisateur temporairement
+    // Générer un code OTP et sa date d'expiration
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Expiration dans 10 minutes
+
+    // Stocker temporairement l'utilisateur avec le code OTP et son expiration
     tempUsers.set(email, { name, email, password: hashedPassword, phone, role, vehicleType, otp, otpExpires });
 
-    // Envoi du mail avec OTP
+    // Envoi du mail avec le code OTP
     await sendEmail({
       email,
-      subject: "Votre code de vérification",
-      message: `Votre code OTP est : ${otp}`,
+      subject: "Your Verification Code",
+      otp: otp, 
     });
 
     res.status(200).json({ message: "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription." });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
 
 
 const verifyOTP = async (req, res) => {
