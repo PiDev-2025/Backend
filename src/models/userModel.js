@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
   phone: { type: Number, required: true },
   role: { type: String, enum: ["Owner", "Driver", "Admin", "Employe"], default: "Driver" },
   vehicleType: { type: String, enum: ["Big", "Medium", "Small"], required: false },
+  otp: { type: String, required: false },
+  otpExpires: { type: Date, required: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

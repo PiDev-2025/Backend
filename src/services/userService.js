@@ -1,15 +1,96 @@
 const User = require("../models/userModel");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const sendEmail = require("../utils/sendEmail");
 
-// Create a new user
-const createUser = async (req, res) => {
+// Fonction pour générer un OTP aléatoire
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+
+const tempUsers = new Map(); // Stocker temporairement les utilisateurs
+
+const signup = async (req, res) => {
+  const { name, email, password, phone, role, vehicleType } = req.body;
+
   try {
-    const user = new User(req.body);
-    await user.save();
-    res.status(201).json(user);
+    let user = await User.findOne({ email });
+    if (user) return res.status(400).json({ message: "Utilisateur déjà existant" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Expire en 10 min
+
+    // Stocker l'utilisateur temporairement
+    tempUsers.set(email, { name, email, password: hashedPassword, phone, role, vehicleType, otp, otpExpires });
+
+    // Envoi du mail avec OTP
+    await sendEmail({
+      email,
+      subject: "Votre code de vérification",
+      message: `Votre code OTP est : ${otp}`,
+    });
+
+    res.status(200).json({ message: "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription." });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+
+const verifyOTP = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    // Vérifier si l'utilisateur existe dans la mémoire temporaire
+    const tempUser = tempUsers.get(email);
+
+    if (!tempUser) {
+      return res.status(400).json({ message: "OTP invalide ou utilisateur non trouvé" });
+    }
+
+    console.log("Type de l'OTP attendu :", typeof tempUser.otp);
+    console.log("Type de l'OTP reçu :", typeof otp);
+    console.log(`OTP attendu: ${tempUser.otp}, OTP reçu: ${otp}`);
+
+
+    // Vérifier si l'OTP est correct
+    if (String(tempUser.otp) !== String(otp)) {
+      console.log(`OTP attendu: ${tempUser.otp}, OTP reçu: ${otp}`);
+      return res.status(400).json({ message: "OTP invalide" });
+    }
+
+
+    // Vérifier si l'OTP est expiré
+    if (new Date() > tempUser.otpExpires) {
+      tempUsers.delete(email); // Supprimer de la mémoire temporaire
+      return res.status(400).json({ message: "OTP expiré" });
+    }
+
+    // Créer et sauvegarder l'utilisateur en base de données
+    const newUser = new User({
+      name: tempUser.name,
+      email: tempUser.email,
+      password: tempUser.password,
+      phone: tempUser.phone,
+      role: tempUser.role,
+      vehicleType: tempUser.vehicleType,
+    });
+    await newUser.save();
+
+    // Supprimer l'utilisateur de la mémoire temporaire
+    tempUsers.delete(email);
+
+    console.log(process.env.JWT_SECRET)
+    // Générer le token JWT
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    res.status(200).json({ message: "Inscription réussie", token });
+  } catch (error) {
+    console.error("Erreur serveur :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
 
 // Get all users
 const getUsers = async (req, res) => {
@@ -70,8 +151,9 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = {
-  createUser,
   getUsers,
+  signup,
+  verifyOTP,
   getUserById,
   updateUser,
   deleteUser,

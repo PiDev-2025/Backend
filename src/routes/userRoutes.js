@@ -1,14 +1,17 @@
 const express = require("express");
 const router = express.Router();
+
 const {
-  createUser,
+  signup,
+  verifyOTP,
   getUsers,
   getUserById,
   updateUser,
   deleteUser
 } = require("../services/userService");
 
-router.post("/users", createUser);
+router.post("/signup", signup);
+router.post("/verify-otp", verifyOTP);
 router.get("/users", getUsers);
 router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
