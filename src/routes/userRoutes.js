@@ -8,7 +8,9 @@ const {
   getUsers,
   getUserById,
   updateUser,
-  deleteUser
+  deleteUser,
+  loginUser,
+  authenticateUser,
 } = require("../services/userService");
 /*
 router.post("/login-after-otp", async (req, res) => {
@@ -30,5 +32,6 @@ router.get("/users", getUsers);
 router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
+router.post("/users/login", loginUser);
 
 module.exports = router;

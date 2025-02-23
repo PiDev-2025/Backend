@@ -45,6 +45,7 @@ const signup = async (req, res) => {
 const verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
 
+
   try {
     // Vérifier si l'utilisateur existe dans la mémoire temporaire
     const tempUser = tempUsers.get(email);
@@ -132,14 +133,10 @@ const getUserById = async (req, res) => {
 // Update a user
 const updateUser = async (req, res) => {
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true, // Return updated document
-        runValidators: true, // Ensure validation
-      }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
+      new: true, // Return updated document
+      runValidators: true, // Ensure validation
+    });
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
@@ -164,6 +161,32 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = generateToken(user);
+
+  res.json({ token });
+};
+
+const authenticateUser = (req, res, next) => {
+  const token = req.header("Authorization")?.split(" ")[1];
+
+  if (!token) return res.status(403).json({ message: "Access Denied" });
+
+  try {
+    req.user = authenticateToken(token);
+    next();
+  } catch {
+    res.status(403).json({ message: "Invalid Token" });
+  }
+};
+
 module.exports = {
   loginUser,
   getUsers,
@@ -172,4 +195,6 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  loginUser,
+  authenticateUser,
 };
