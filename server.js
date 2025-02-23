@@ -3,7 +3,8 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
-var http = require('http')
+var http = require('http');
+//import { v2 as cloudinary } from 'cloudinary';
 
 connectDB();
 
@@ -17,6 +18,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+//app.use(express.urlencoded({extended: true, limit:'50mb' }))
 
 // Add CORS headers to all responses
 app.use((req, res, next) => {
@@ -57,5 +60,28 @@ var server = http.createServer(app)
 server.listen(port,()=>{
   console.log(`server started on port ${port}!`);
 })
+/*
+(async function() {
 
+  // Configuration
+  cloudinary.config({ 
+      cloud_name: 'dpcyppzpw', 
+      api_key: '331539858182128', 
+      api_secret: 'R-__lY9X5oqF5BGXHYixPXIkXY8' 
+  });
+  
+  // Upload an image
+   const uploadResult = await cloudinary.uploader
+     .upload(
+         'https://res.cloudinary.com/demo/image/upload/getting-started/shoes.jpg', {
+             public_id: 'shoes',
+         }
+     )
+     .catch((error) => {
+         console.log(error);
+     });
+  
+  console.log(uploadResult);  
+})();
+*/
 

@@ -2,6 +2,7 @@ const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/SignUpMailVerif");
+const { generateToken, authenticateToken } = require("../utils/token");
 
 // Fonction pour générer un OTP aléatoire
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -41,8 +42,6 @@ const signup = async (req, res) => {
   }
 };
 
-
-
 const verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
 
@@ -58,13 +57,11 @@ const verifyOTP = async (req, res) => {
     console.log("Type de l'OTP reçu :", typeof otp);
     console.log(`OTP attendu: ${tempUser.otp}, OTP reçu: ${otp}`);
 
-
     // Vérifier si l'OTP est correct
     if (String(tempUser.otp) !== String(otp)) {
       console.log(`OTP attendu: ${tempUser.otp}, OTP reçu: ${otp}`);
       return res.status(400).json({ message: "OTP invalide" });
     }
-
 
     // Vérifier si l'OTP est expiré
     if (new Date() > tempUser.otpExpires) {
@@ -86,15 +83,26 @@ const verifyOTP = async (req, res) => {
     // Supprimer l'utilisateur de la mémoire temporaire
     tempUsers.delete(email);
 
-    console.log(process.env.JWT_SECRET)
-    // Générer le token JWT
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-    res.status(200).json({ message: "Inscription réussie", token });
+    // Retourner un message de succès sans générer le token
+    res.status(200).json({ message: "Inscription réussie" });
   } catch (error) {
     console.error("Erreur serveur :", error);
     res.status(500).json({ message: "Erreur serveur" });
   }
+};
+
+//login
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = generateToken(user);
+
+  res.json({ token });
 };
 
 
@@ -157,6 +165,7 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = {
+  loginUser,
   getUsers,
   signup,
   verifyOTP,
