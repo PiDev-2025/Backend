@@ -7,12 +7,18 @@ const connectDB = require("./src/config/db");
 const http = require("http");
 const session = require("express-session");
 const cors = require("cors");
-require("dotenv").config(); // Load environment variables
+require("dotenv").config(); 
 
-// Connect to Database
 connectDB();
 
-
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your_secret_key", 
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } 
+  })
+);
 
 
 // Passport Authentication
@@ -30,6 +36,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
 
 // Add CORS headers to all responses
 app.use((req, res, next) => {
