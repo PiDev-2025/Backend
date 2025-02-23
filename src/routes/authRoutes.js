@@ -1,4 +1,12 @@
 const express = require("express");
+
+const { signup, login, verifyOTP } = require("../controllers/authController");
+
+const router = express.Router();
+
+router.post("/signup", signup);
+router.post("/login", login);
+router.post("/verify-otp", verifyOTP);
 const passport = require("passport");
 
 const router = express.Router();
@@ -30,5 +38,4 @@ router.get("/logout", (req, res) => {
     res.json({ message: "Logged out successfully" });
   });
 });
-
 module.exports = router;
