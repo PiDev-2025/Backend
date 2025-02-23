@@ -9,7 +9,7 @@ router.post("/login", login);
 router.post("/verify-otp", verifyOTP);
 const passport = require("passport");
 
-const router = express.Router();
+
 
 // Google Login Route
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
