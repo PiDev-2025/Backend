@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const sendEmail = require('../utils/sendEmail');
 
@@ -56,23 +57,72 @@ Your App Team`;
 exports.resetPassword = async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
+  
   try {
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+    // Enhanced validation
+    if (!token) {
+      return res.status(400).json({
+        message: 'Reset token is missing',
+        success: false
+      });
     }
 
-    user.password = password;
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        message: 'Password is required and must be at least 6 characters long',
+        success: false
+      });
+    }
+
+    // Find user and ensure token hasn't expired
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    }).select('+password');
+
+    if (!user) {
+      // Log detailed information for debugging
+      console.log('Reset attempt failed:', {
+        providedToken: token,
+        currentTime: new Date(),
+        tokenExists: Boolean(token)
+      });
+      
+      return res.status(400).json({
+        message: 'Invalid or expired password reset token',
+        success: false
+      });
+    }
+
+    // Log successful user find
+    console.log('User found:', {
+      userId: user._id,
+      tokenExpiry: user.resetPasswordExpires,
+      currentTime: new Date()
+    });
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Update user
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+
     await user.save();
 
-    res.status(200).json({ message: 'Password has been reset' });
+    res.status(200).json({
+      message: 'Password reset successful',
+      success: true
+    });
+
   } catch (error) {
-    res.status(500).json({ message: 'Error resetting password' });
+    console.error('Password reset error:', error);
+    res.status(500).json({
+      message: 'Internal server error during password reset',
+      success: false,
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
