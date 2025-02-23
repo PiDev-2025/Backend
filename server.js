@@ -1,4 +1,6 @@
-const express = require("express");
+
+const express = require('express');
+const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
@@ -10,20 +12,35 @@ require("dotenv").config(); // Load environment variables
 // Connect to Database
 connectDB();
 
-// Middleware
-app.use(cors({ origin: "http://localhost:3001", credentials: true }));
-app.use(
-  session({
-    secret: "your_secret_key",
-    resave: false,
-    saveUninitialized: true,
-  })
-);
+
+
 
 // Passport Authentication
 const passport = require("./src/config/passport"); // Import the passport config
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CORS configuration
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', true);
+  next();
+});
+
+
 app.use(express.json());
 
 // Import Routes
@@ -53,8 +70,13 @@ app.get("/", (req, res) => {
   res.send("MongoDB is connected to Express!");
 });
 
-// Start Server
-const server = http.createServer(app);
-server.listen(port, () => {
-  console.log(`Server started on port ${port}!`);
-});
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+var server = http.createServer(app)
+server.listen(port,()=>{
+  console.log(`server started on port ${port}!`);
+})
+
+
