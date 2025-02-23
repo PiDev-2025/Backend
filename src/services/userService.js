@@ -161,18 +161,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-
-  const token = generateToken(user);
-
-  res.json({ token });
-};
 
 const authenticateUser = (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
@@ -188,7 +176,6 @@ const authenticateUser = (req, res, next) => {
 };
 
 module.exports = {
-  loginUser,
   getUsers,
   signup,
   verifyOTP,
