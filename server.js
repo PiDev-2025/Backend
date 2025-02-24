@@ -6,7 +6,6 @@ const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
 const http = require("http");
 const session = require("express-session");
-const cors = require("cors");
 require("dotenv").config(); 
 
 connectDB();
@@ -71,6 +70,8 @@ app.use("/api", reportRoutes);
 app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
+
+
 
 // Simple Route
 app.get("/", (req, res) => {

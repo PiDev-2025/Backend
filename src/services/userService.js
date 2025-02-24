@@ -32,7 +32,7 @@ const signup = async (req, res) => {
     await sendEmail({
       email,
       subject: "Your Verification Code",
-      otp: otp, 
+      otp: otp,
     });
 
     res.status(200).json({ message: "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription." });
@@ -70,6 +70,7 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP expiré" });
     }
 
+
     // Créer et sauvegarder l'utilisateur en base de données
     const newUser = new User({
       name: tempUser.name,
@@ -79,6 +80,7 @@ const verifyOTP = async (req, res) => {
       role: tempUser.role,
       vehicleType: tempUser.vehicleType,
     });
+
     await newUser.save();
 
     // Supprimer l'utilisateur de la mémoire temporaire
@@ -161,18 +163,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-
-  const token = generateToken(user);
-
-  res.json({ token });
-};
 
 const authenticateUser = (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
@@ -187,7 +177,24 @@ const authenticateUser = (req, res, next) => {
   }
 };
 
+// Vérification de l'email (existe déjà ou non)
+const checkEmailValidation = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const userExists = await User.findOne({ email });
+    res.json({ exists: !!userExists });
+  } catch (error) {
+    console.error("Error checking email:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
+  checkEmailValidation,
   loginUser,
   getUsers,
   signup,
@@ -195,6 +202,5 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  loginUser,
   authenticateUser,
 };
