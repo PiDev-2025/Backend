@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const {
+  checkEmailValidation,
   signup,
   verifyOTP,
   getUsers,
@@ -20,6 +21,8 @@ router.get("/users", getUsers);
 router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
+router.post("/users/login", loginUser);
+router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
 
 module.exports = router;

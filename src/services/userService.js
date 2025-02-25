@@ -59,7 +59,8 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP expiré" });
     }
 
-    // Save user in the database
+    // Créer et sauvegarder l'utilisateur en base de données
+
     const newUser = new User({
       name: tempUser.name,
       email: tempUser.email,
@@ -68,6 +69,7 @@ const verifyOTP = async (req, res) => {
       role: tempUser.role,
       vehicleType: tempUser.vehicleType,
     });
+
     await newUser.save();
 
     tempUsers.delete(email);
@@ -192,7 +194,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// **Authenticate Middleware**
 const authenticateUser = (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
 
@@ -206,14 +207,31 @@ const authenticateUser = (req, res, next) => {
   }
 };
 
-// **Export All Functions**
+// Vérification de l'email (existe déjà ou non)
+const checkEmailValidation = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const userExists = await User.findOne({ email });
+    res.json({ exists: !!userExists });
+  } catch (error) {
+    console.error("Error checking email:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
+  checkEmailValidation,
+  loginUser,
   getUsers,
   signup,
   verifyOTP,
   getUserById,
   updateUser,
   deleteUser,
-  loginUser,
+  authenticateUser,
   loginVerifyOTP,
 };
