@@ -5,7 +5,8 @@ const sendEmail = require("../utils/SignUpMailVerif");
 const { authenticateToken, generateToken } = require("../utils/token");
 
 // Function to generate a random OTP
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 // Temporary storage for OTP validation
 const tempUsers = new Map(); // For signup OTP verification
@@ -17,7 +18,8 @@ const signup = async (req, res) => {
 
   try {
     let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Utilisateur déjà existant" });
+    if (user)
+      return res.status(400).json({ message: "Utilisateur déjà existant" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -25,7 +27,16 @@ const signup = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // Store user temporarily with OTP
-    tempUsers.set(email, { name, email, password: hashedPassword, phone, role, vehicleType, otp, otpExpires });
+    tempUsers.set(email, {
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      role,
+      vehicleType,
+      otp,
+      otpExpires,
+    });
 
     // Send OTP via email
     await sendEmail({
@@ -34,7 +45,10 @@ const signup = async (req, res) => {
       otp: otp,
     });
 
-    res.status(200).json({ message: "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription." });
+    res.status(200).json({
+      message:
+        "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription.",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur serveur" });
@@ -44,7 +58,7 @@ const signup = async (req, res) => {
 //get User by id from token
 const getUserIdFromToken = (token) => {
   try {
-    const decoded = authenticateToken();
+    const decoded = authenticateToken(token);
     return decoded.id;
   } catch (error) {
     console.error("Invalid token", error);
@@ -59,7 +73,10 @@ const verifyOTP = async (req, res) => {
   try {
     const tempUser = tempUsers.get(email);
 
-    if (!tempUser) return res.status(400).json({ message: "OTP invalide ou utilisateur non trouvé" });
+    if (!tempUser)
+      return res
+        .status(400)
+        .json({ message: "OTP invalide ou utilisateur non trouvé" });
 
     if (String(tempUser.otp) !== String(otp)) {
       return res.status(400).json({ message: "OTP invalide" });
@@ -98,10 +115,12 @@ const loginUser = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user)
+      return res.status(400).json({ message: "Utilisateur introuvable" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Mot de passe incorrect" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Mot de passe incorrect" });
 
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -128,7 +147,9 @@ const loginVerifyOTP = async (req, res) => {
   try {
     const tempUser = tempUserslogin.get(email);
     if (!tempUser) {
-      return res.status(400).json({ message: "OTP invalide ou utilisateur non trouvé" });
+      return res
+        .status(400)
+        .json({ message: "OTP invalide ou utilisateur non trouvé" });
     }
 
     if (String(tempUser.otp) !== String(otp)) {
@@ -142,10 +163,11 @@ const loginVerifyOTP = async (req, res) => {
 
     // Find user in database
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user)
+      return res.status(400).json({ message: "Utilisateur introuvable" });
 
     // Generate JWT token
-    const token = generateToken();
+    const token = generateToken(user);
 
     tempUserslogin.delete(email);
 
@@ -185,7 +207,8 @@ const updateUser = async (req, res) => {
       runValidators: true,
     });
 
-    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+    if (!updatedUser)
+      return res.status(404).json({ message: "User not found" });
 
     res.status(200).json(updatedUser);
   } catch (error) {
@@ -197,7 +220,8 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+    if (!deletedUser)
+      return res.status(404).json({ message: "User not found" });
 
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
@@ -247,7 +271,6 @@ const loginAfterSignUp = async (req, res) => {
 
   res.json({ token });
 };
-
 
 module.exports = {
   checkEmailValidation,
