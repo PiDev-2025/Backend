@@ -41,9 +41,9 @@ const sendEmail = async (options) => {
     `,  // Contenu HTML de l'email, incluant un message personnalisé
         attachments: [
             {
-                filename: 'logo.png',  // Nom du fichier du logo
-                path: process.env.PARKINI_LOGO,  // Remplacer avec le chemin vers ton logo
-                cid: 'logo',  // Cid pour afficher l'image directement dans le HTML
+                filename: "logo.png", // Nom du fichier du logo
+                path: "./resources/ParkiniBlack.png", // Remplacer avec le chemin vers ton logo
+                cid: "logo", // Cid pour afficher l'image directement dans le HTML
             },
         ],
     };
