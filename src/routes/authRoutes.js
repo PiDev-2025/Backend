@@ -1,13 +1,14 @@
 const express = require("express");
 
 const { signup, login, verifyOTP } = require("../controllers/authController");
-
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/verify-otp", verifyOTP);
 const passport = require("passport");
+const user = require("../models/userModel");
 
 
 
@@ -19,7 +20,21 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/" }),
   (req, res) => {
-    res.redirect("http://localhost:3000"); // Redirect to frontend after login
+    if (!req.user) {
+      return res.redirect("http://localhost:3000?error=Unauthorized");
+    }
+
+    // Generate JWT token
+    // Generate JWT token and store it in a variable
+    const token = jwt.sign(
+      { id: req.user._id, name: req.user.name, email: req.user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+
+    // Redirect to frontend with token as URL parameter
+    res.redirect(`http://localhost:3000/google/callback?token=${token}`);
   }
 );
 

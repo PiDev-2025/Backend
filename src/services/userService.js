@@ -132,11 +132,12 @@ const loginVerifyOTP = async (req, res) => {
     if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
 
     // Generate JWT token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-    tempUserslogin.delete(email);
+    const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    // Redirect to frontend with token as URL parameter
+    
 
     res.status(200).json({ message: "Authentification réussie", token });
+
   } catch (error) {
     console.error("Erreur serveur :", error);
     res.status(500).json({ message: "Erreur serveur" });
