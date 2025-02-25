@@ -8,9 +8,9 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ["Owner", "Driver", "Admin", "Employe"]},
   vehicleType: {
     type: String,
-    enum: ['Big', 'Medium', 'Small'],
+    enum: ['Moto', 'Citadine', 'Berline / Petit SUV', 'Familiale / Grand SUV','Utilitaire'],
     required: false,
-    default: undefined // Or a specific default value if you prefer
+    default: undefined 
 },
   otp: { type: String, required: false },
   otpExpires: { type: Date, required: false },
