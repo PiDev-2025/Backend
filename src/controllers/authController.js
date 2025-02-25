@@ -4,7 +4,8 @@ const sendEmail = require("../utils/sendEmail");
 const { generateToken } = require("../utils/token");
 
 // Fonction pour générer un OTP aléatoire
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 // ➤ Inscription
 exports.signup = async (req, res) => {
@@ -12,13 +13,23 @@ exports.signup = async (req, res) => {
 
   try {
     let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Utilisateur déjà existant" });
+    if (user)
+      return res.status(400).json({ message: "Utilisateur déjà existant" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Expire en 10 min
 
-    user = new User({ name, email, password: hashedPassword, phone, role, vehicleType, otp, otpExpires });
+    user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      role,
+      vehicleType,
+      otp,
+      otpExpires,
+    });
     await user.save();
 
     // Utilisation de la fonction sendEmail pour envoyer le code OTP
@@ -40,10 +51,12 @@ exports.login = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user)
+      return res.status(400).json({ message: "Utilisateur introuvable" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Mot de passe incorrect" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Mot de passe incorrect" });
 
     const otp = generateOTP();
     user.otp = otp;
@@ -65,36 +78,36 @@ exports.login = async (req, res) => {
 
 // ➤ Vérification OTP
 exports.verifyOTP = async (req, res) => {
-    const { email, otp } = req.body;
-    console.log("Requête reçue avec :", { email, otp });
-  
-    try {
-      const user = await User.findOne({ email });
-      if (!user) {
-        console.log("Utilisateur introuvable !");
-        return res.status(400).json({ message: "Utilisateur introuvable" });
-      }
-  
-      console.log("Utilisateur trouvé :", user);
-  
-      if (user.otp !== otp) {
-        console.log("OTP invalide :", user.otp, "fourni :", otp);
-        return res.status(400).json({ message: "OTP invalide" });
-      }
-  
-      if (new Date() > user.otpExpires) {
-        console.log("OTP expiré !");
-        return res.status(400).json({ message: "OTP expiré" });
-      }
-  
-      user.otp = null;
-      user.otpExpires = null;
-      await user.save();
-  
-      const token = generateToken();
-      res.status(200).json({ message: "Authentification réussie", token });
-    } catch (error) {
-      console.error("Erreur serveur :", error);
-      res.status(500).json({ message: "Erreur serveur" });
+  const { email, otp } = req.body;
+  console.log("Requête reçue avec :", { email, otp });
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log("Utilisateur introuvable !");
+      return res.status(400).json({ message: "Utilisateur introuvable" });
     }
-  };
+
+    console.log("Utilisateur trouvé :", user);
+
+    if (user.otp !== otp) {
+      console.log("OTP invalide :", user.otp, "fourni :", otp);
+      return res.status(400).json({ message: "OTP invalide" });
+    }
+
+    if (new Date() > user.otpExpires) {
+      console.log("OTP expiré !");
+      return res.status(400).json({ message: "OTP expiré" });
+    }
+
+    user.otp = null;
+    user.otpExpires = null;
+    await user.save();
+
+    const token = generateToken(user);
+    res.status(200).json({ message: "Authentification réussie", token });
+  } catch (error) {
+    console.error("Erreur serveur :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
