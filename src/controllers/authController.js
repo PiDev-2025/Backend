@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const sendEmail = require("../utils/sendEmail");
+const { generateToken } = require("../utils/token");
 
 // Fonction pour générer un OTP aléatoire
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -66,7 +66,7 @@ exports.login = async (req, res) => {
 // ➤ Vérification OTP
 exports.verifyOTP = async (req, res) => {
     const { email, otp } = req.body;
-    console.log("Requête reçue avec :", { email, otp }); // Vérifie si les données arrivent
+    console.log("Requête reçue avec :", { email, otp });
   
     try {
       const user = await User.findOne({ email });
@@ -91,7 +91,7 @@ exports.verifyOTP = async (req, res) => {
       user.otpExpires = null;
       await user.save();
   
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+      const token = generateToken();
       res.status(200).json({ message: "Authentification réussie", token });
     } catch (error) {
       console.error("Erreur serveur :", error);

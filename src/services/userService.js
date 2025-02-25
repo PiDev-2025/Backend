@@ -2,7 +2,7 @@ const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/SignUpMailVerif");
-const { authenticateToken } = require("../utils/token");
+const { authenticateToken, generateToken } = require("../utils/token");
 
 // Function to generate a random OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -38,6 +38,17 @@ const signup = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+//get User by id from token
+const getUserIdFromToken = (token) => {
+  try {
+    const decoded = authenticateToken();
+    return decoded.id;
+  } catch (error) {
+    console.error("Invalid token", error);
+    return null;
   }
 };
 
@@ -134,7 +145,7 @@ const loginVerifyOTP = async (req, res) => {
     if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
 
     // Generate JWT token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = generateToken();
 
     tempUserslogin.delete(email);
 
@@ -223,15 +234,32 @@ const checkEmailValidation = async (req, res) => {
   }
 };
 
+//login after password KENZAAAA3333
+const loginAfterSignUp = async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = generateToken(user);
+
+  res.json({ token });
+};
+
+
 module.exports = {
   checkEmailValidation,
   loginUser,
   getUsers,
   signup,
   verifyOTP,
+  loginAfterSignUp,
   getUserById,
   updateUser,
   deleteUser,
   authenticateUser,
   loginVerifyOTP,
+  getUserIdFromToken,
 };
