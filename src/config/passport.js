@@ -12,13 +12,12 @@ passport.use(
         async (accessToken, refreshToken, profile, done) => {
             try {
                 let user = await User.findOne({
-                    _id: profile.id
+                    email: profile.emails[0].value
                 });
 
 
                 if (!user) {
-                    user = new User({
-                        _id: profile.id,
+                    user = new User({         
                         name: profile.displayName,
                         email: profile.emails[0].value,
                         password: profile.password,  // Default empty password

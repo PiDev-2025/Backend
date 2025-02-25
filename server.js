@@ -1,14 +1,17 @@
 
 const express = require('express');
-const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
+
 const http = require("http");
 const session = require("express-session");
 require("dotenv").config(); 
 
+
 connectDB();
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
 
 app.use(
   session({
@@ -60,8 +63,10 @@ const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 
+
 // Routes
 app.use("/auth", authRoutes); // New route for authentication
+
 app.use("/User", userRoutes);
 app.use("/api", claimRoutes);
 app.use("/api", contractRoutes);
@@ -86,5 +91,7 @@ var server = http.createServer(app)
 server.listen(port,()=>{
   console.log(`server started on port ${port}!`);
 })
+
+
 
 

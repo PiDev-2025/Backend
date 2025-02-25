@@ -1,7 +1,15 @@
 const express = require("express");
-const passport = require("passport");
+
+const { signup, login, verifyOTP } = require("../controllers/authController");
 
 const router = express.Router();
+
+router.post("/signup", signup);
+router.post("/login", login);
+router.post("/verify-otp", verifyOTP);
+const passport = require("passport");
+
+
 
 // Google Login Route
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
@@ -30,5 +38,4 @@ router.get("/logout", (req, res) => {
     res.json({ message: "Logged out successfully" });
   });
 });
-
 module.exports = router;

@@ -42,7 +42,7 @@ const sendEmail = async (options) => {
         attachments: [
             {
                 filename: 'logo.png',  // Nom du fichier du logo
-                path: 'C:/Users/bensl/Desktop/PI/Backend/src/utils/ParkiniBlack.png',  // Remplacer avec le chemin vers ton logo
+                path: process.env.PARKINI_LOGO,  // Remplacer avec le chemin vers ton logo
                 cid: 'logo',  // Cid pour afficher l'image directement dans le HTML
             },
         ],

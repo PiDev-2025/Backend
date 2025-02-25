@@ -5,10 +5,11 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String },
   phone: { type: Number },
-  status:{type: String,
+  status: { 
+    type: String,
     enum: ['Active', 'Blocked'],
     required: false,
-    default: undefined
+    default: 'Active'
   },
   role: { type: String, enum: ["Owner", "Driver", "Admin", "Employe"] },
   vehicleType: {
@@ -16,6 +17,14 @@ const userSchema = new mongoose.Schema({
     enum: ['Moto', 'Citadine', 'Berline / Petit SUV', 'Familiale / Grand SUV', 'Utilitaire'],
     required: false,
     default: undefined
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
   }
 }, { timestamps: true });
 
