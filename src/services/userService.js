@@ -96,7 +96,7 @@ const verifyOTP = async (req, res) => {
       phone: tempUser.phone,
       role: tempUser.role,
       vehicleType: tempUser.vehicleType,
-    });
+    });                                                 
 
     await newUser.save();
 
@@ -167,9 +167,9 @@ const loginVerifyOTP = async (req, res) => {
       return res.status(400).json({ message: "Utilisateur introuvable" });
 
     // Generate JWT token
-    const token = generateToken(user);
 
-    tempUserslogin.delete(email);
+    const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
 
     res.status(200).json({ message: "Authentification réussie", token });
   } catch (error) {
