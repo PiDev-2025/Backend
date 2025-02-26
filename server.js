@@ -3,6 +3,8 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
+const cors = require('cors');
+
 
 const http = require("http");
 const session = require("express-session");
@@ -65,7 +67,7 @@ const passwordRoutes = require("./src/routes/passwordRoutes");
 
 
 // Routes
-app.use("/auth", authRoutes); // New route for authentication
+app.use("/auth", authRoutes);
 
 app.use("/User", userRoutes);
 app.use("/api", claimRoutes);
