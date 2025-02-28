@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { upload } = require("../middlewares/uploadMiddleware");
+const { upload, getUserFromToken } = require("../middlewares/uploadMiddleware");
 
 const {
   checkEmailValidation,
@@ -32,6 +32,6 @@ router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
 router.get("/userProfile", userProfile);
 router.put("/changeStatus/:id", changeUserStatus);
-router.put("/update-profile/:id", upload, updateProfile);
+router.put("/update-profile", getUserFromToken, upload, updateProfile);
 
 module.exports = router;

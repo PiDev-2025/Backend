@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     required: false,
     default: undefined
   },
-  image: { type: String, default: undefined },
+  image: { type: String, default: 'https://res.cloudinary.com/dpcyppzpw/image/upload/w_1000,c_fill,ar_1:1,g_auto,r_max,bo_5px_solid_red,b_rgb:262c35/v1740761212/profile-user-icon_h3njnr.jpg' },
   resetPasswordToken: {
     type: String,
     select: false
