@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { upload, getUserFromToken } = require("../middlewares/uploadMiddleware");
 
 const {
   checkEmailValidation,
@@ -12,7 +13,9 @@ const {
   deleteUser,
   loginUser,
   loginVerifyOTP,
-  getUserIdFromToken
+  userProfile,
+  changeUserStatus,
+  updateProfile
 } = require("../services/userService");
 
 
@@ -27,6 +30,8 @@ router.delete("/users/:id", deleteUser);
 router.post("/users/login", loginUser);
 router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
-router.get("/getUserIdFromToken/:token", getUserIdFromToken);
+router.get("/userProfile", userProfile);
+router.put("/changeStatus/:id", changeUserStatus);
+router.put("/update-profile", getUserFromToken, upload, updateProfile);
 
 module.exports = router;

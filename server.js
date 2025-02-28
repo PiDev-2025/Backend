@@ -1,18 +1,28 @@
-
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
 const cors = require('cors');
-
-
+const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const session = require("express-session");
-require("dotenv").config(); 
+require("dotenv").config();
 
 
 connectDB();
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
+// Configuration de Multer pour stocker les images sur Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "user_images",
+    format: async (req, file) => "jpg",
+    public_id: (req, file) => req.user._id },
+});
+const upload = multer({ storage }).single("image");
 
 
 app.use(

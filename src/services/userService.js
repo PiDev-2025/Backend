@@ -56,15 +56,109 @@ const signup = async (req, res) => {
 };
 
 //get User by id from token
-const getUserIdFromToken = (token) => {
+const getUserByIdFromToken = async (token) => {
   try {
+    if (!token) {
+      throw new Error("Token is missing");
+    }
+
+    // Décoder le token
     const decoded = authenticateToken(token);
-    return decoded.id;
+
+    // Rechercher l'utilisateur par ID
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return user;
   } catch (error) {
-    console.error("Invalid token", error);
+    console.error("Invalid token or user not found", error);
     return null;
   }
 };
+const userProfile = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", ""); // Getting token from header
+    
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    // Décoder le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Vérifier quelle clé contient l'ID utilisateur
+    const userId = decoded.userId || decoded.id || decoded._id; // Adaptation possible selon ton token
+
+    if (!userId) {
+      return res.status(400).json({ message: "Invalid token structure" });
+    }
+
+    // Rechercher l'utilisateur
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in userProfile:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+//get user Information from Token
+//hedhy thenya
+/*
+const userProfile = async (req, res) => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    // Décoder le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Vérifier quelle clé contient l'ID utilisateur
+    const userId = decoded.userId || decoded.id || decoded._id; // Adaptation possible selon ton token
+
+    if (!userId) {
+      return res.status(400).json({ message: "Invalid token structure" });
+    }
+
+    // Rechercher l'utilisateur
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in userProfile:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};*/
+/*const userProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Récupérer le token Bearer
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const user = await getUserByIdFromToken(token);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in userProfile:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};*/
 
 // **Verify Signup OTP**
 const verifyOTP = async (req, res) => {
@@ -272,6 +366,66 @@ const loginAfterSignUp = async (req, res) => {
   res.json({ token });
 };
 
+
+//toggle user status
+const toggleUserStatus = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Inverser le statut
+    user.status = user.status === "Active" ? "Blocked" : "Active";
+    await user.save();
+
+    return user;
+  } catch (error) {
+    console.error("Error toggling user status:", error);
+    throw error;
+  }
+};
+
+//change status user
+const changeUserStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const updatedUser = await toggleUserStatus(userId);
+    res.status(200).json({ message: "User status updated", user: updatedUser });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    // Récupérer l'utilisateur à partir du token (pas du paramètre)
+    const user = req.user; // Assurez-vous que le middleware getUserFromToken ajoute l'utilisateur dans la requête
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Vérifier s'il y a une image uploadée
+    if (req.file) {
+      // Si une nouvelle image est téléchargée, on met à jour l'URL dans le modèle utilisateur
+      user.image = req.file.path; // Assuming 'path' is where the image URL from Cloudinary is stored
+    }
+
+    // Mettre à jour les autres informations de l'utilisateur
+    Object.assign(user, req.body);
+    await user.save();
+
+    res.status(200).json({ message: "Profile updated successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating profile", error: error.message });
+  }
+};
+
+
+
+
+
+
 module.exports = {
   checkEmailValidation,
   loginUser,
@@ -284,5 +438,6 @@ module.exports = {
   deleteUser,
   authenticateUser,
   loginVerifyOTP,
-  getUserIdFromToken,
+  userProfile,
+  changeUserStatus,updateProfile
 };
