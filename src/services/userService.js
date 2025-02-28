@@ -42,13 +42,45 @@ const signup = async (req, res) => {
 };
 
 //get User by id from token
-const getUserIdFromToken = (token) => {
+const getUserByIdFromToken = async (token) => {
   try {
-    const decoded = authenticateToken();
-    return decoded.id;
+    if (!token) {
+      throw new Error("Token is missing");
+    }
+
+    // Décoder le token
+    const decoded = authenticateToken(token);
+
+    // Rechercher l'utilisateur par ID
+    const user = await User.findById(decoded.id).select("-password"); // Exclure le mot de passe pour des raisons de sécurité
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return user;
   } catch (error) {
-    console.error("Invalid token", error);
+    console.error("Invalid token or user not found", error);
     return null;
+  }
+};
+
+//get user Information from Token
+const userProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Récupérer le token Bearer
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const user = await getUserByIdFromToken(token);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in userProfile:", error.message);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -248,6 +280,36 @@ const loginAfterSignUp = async (req, res) => {
   res.json({ token });
 };
 
+//toggle user status
+const toggleUserStatus = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Inverser le statut
+    user.status = user.status === "Active" ? "Blocked" : "Active";
+    await user.save();
+
+    return user;
+  } catch (error) {
+    console.error("Error toggling user status:", error);
+    throw error;
+  }
+};
+
+//change status user
+const changeUserStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const updatedUser = await toggleUserStatus(userId);
+    res.status(200).json({ message: "User status updated", user: updatedUser });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 
 module.exports = {
   checkEmailValidation,
@@ -261,5 +323,6 @@ module.exports = {
   deleteUser,
   authenticateUser,
   loginVerifyOTP,
-  getUserIdFromToken,
+  userProfile,
+  changeUserStatus
 };

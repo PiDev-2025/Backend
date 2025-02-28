@@ -12,7 +12,8 @@ const {
   deleteUser,
   loginUser,
   loginVerifyOTP,
-  getUserIdFromToken
+  userProfile,
+  changeUserStatus
 } = require("../services/userService");
 
 
@@ -27,6 +28,7 @@ router.delete("/users/:id", deleteUser);
 router.post("/users/login", loginUser);
 router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
-router.get("/getUserIdFromToken/:token", getUserIdFromToken);
+router.get("/userProfile", userProfile);
+router.put("/changeStatus/:id", changeUserStatus);
 
 module.exports = router;
