@@ -313,28 +313,25 @@ const changeUserStatus = async (req, res) => {
 //update user profile with upload photo
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // Supposons que l'ID de l'utilisateur est extrait du token
+    const userId = req.params.id;
     const user = await User.findById(userId);
-    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     // Vérifier s'il y a une image uploadée
     if (!req.file) {
       return res.status(400).json({ message: "No image uploaded" });
     }
-
-    // Mettre à jour l'image de l'utilisateur
-    user.image = req.file.path; // L'URL Cloudinary de l'image uploadée
+    // Mettre à jour l'image de l'utilisateur avec l'URL Cloudinary
+    user.image = req.file.path; // req.file.path contient l'URL Cloudinary de l'image uploadée
+    Object.assign(user, req.body);
     await user.save();
-
-    res.status(200).json({ message: "Profile updated successfully", user });
-
+    res.status(200).json({ message: "Profile updated successfully", user }); 
   } catch (error) {
     res.status(500).json({ message: "Error updating profile", error: error.message });
   }
 };
+
 
 
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { upload } = require("../middlewares/uploadMiddleware");
 
 const {
   checkEmailValidation,
@@ -13,7 +14,8 @@ const {
   loginUser,
   loginVerifyOTP,
   userProfile,
-  changeUserStatus
+  changeUserStatus,
+  updateProfile
 } = require("../services/userService");
 
 
@@ -30,6 +32,6 @@ router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
 router.get("/userProfile", userProfile);
 router.put("/changeStatus/:id", changeUserStatus);
-app.put("/update-profile", upload, updateProfile);
+router.put("/update-profile/:id", upload, updateProfile);
 
 module.exports = router;
