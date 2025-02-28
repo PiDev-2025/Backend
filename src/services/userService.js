@@ -5,7 +5,8 @@ const sendEmail = require("../utils/SignUpMailVerif");
 const { authenticateToken, generateToken } = require("../utils/token");
 
 // Function to generate a random OTP
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 // Temporary storage for OTP validation
 const tempUsers = new Map(); // For signup OTP verification
@@ -17,7 +18,8 @@ const signup = async (req, res) => {
 
   try {
     let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Utilisateur déjà existant" });
+    if (user)
+      return res.status(400).json({ message: "Utilisateur déjà existant" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -25,7 +27,16 @@ const signup = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // Store user temporarily with OTP
-    tempUsers.set(email, { name, email, password: hashedPassword, phone, role, vehicleType, otp, otpExpires });
+    tempUsers.set(email, {
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      role,
+      vehicleType,
+      otp,
+      otpExpires,
+    });
 
     // Send OTP via email
     await sendEmail({
@@ -34,7 +45,10 @@ const signup = async (req, res) => {
       otp: otp,
     });
 
-    res.status(200).json({ message: "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription." });
+    res.status(200).json({
+      message:
+        "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription.",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur serveur" });
@@ -153,7 +167,10 @@ const verifyOTP = async (req, res) => {
   try {
     const tempUser = tempUsers.get(email);
 
-    if (!tempUser) return res.status(400).json({ message: "OTP invalide ou utilisateur non trouvé" });
+    if (!tempUser)
+      return res
+        .status(400)
+        .json({ message: "OTP invalide ou utilisateur non trouvé" });
 
     if (String(tempUser.otp) !== String(otp)) {
       return res.status(400).json({ message: "OTP invalide" });
@@ -173,7 +190,7 @@ const verifyOTP = async (req, res) => {
       phone: tempUser.phone,
       role: tempUser.role,
       vehicleType: tempUser.vehicleType,
-    });
+    });                                                 
 
     await newUser.save();
 
@@ -192,10 +209,12 @@ const loginUser = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user)
+      return res.status(400).json({ message: "Utilisateur introuvable" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Mot de passe incorrect" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Mot de passe incorrect" });
 
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -222,7 +241,9 @@ const loginVerifyOTP = async (req, res) => {
   try {
     const tempUser = tempUserslogin.get(email);
     if (!tempUser) {
-      return res.status(400).json({ message: "OTP invalide ou utilisateur non trouvé" });
+      return res
+        .status(400)
+        .json({ message: "OTP invalide ou utilisateur non trouvé" });
     }
 
     if (String(tempUser.otp) !== String(otp)) {
@@ -236,12 +257,13 @@ const loginVerifyOTP = async (req, res) => {
 
     // Find user in database
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user)
+      return res.status(400).json({ message: "Utilisateur introuvable" });
 
     // Generate JWT token
-    const token = generateToken();
 
-    tempUserslogin.delete(email);
+    const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
 
     res.status(200).json({ message: "Authentification réussie", token });
   } catch (error) {
@@ -279,7 +301,8 @@ const updateUser = async (req, res) => {
       runValidators: true,
     });
 
-    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+    if (!updatedUser)
+      return res.status(404).json({ message: "User not found" });
 
     res.status(200).json(updatedUser);
   } catch (error) {
@@ -291,7 +314,8 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+    if (!deletedUser)
+      return res.status(404).json({ message: "User not found" });
 
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
@@ -341,6 +365,7 @@ const loginAfterSignUp = async (req, res) => {
 
   res.json({ token });
 };
+
 
 //toggle user status
 const toggleUserStatus = async (userId) => {
@@ -396,51 +421,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-//update user profile with upload photo
-//hedhyy thenya
-/*const updateProfile = async (req, res) => {
-  try {
-    // Récupérer l'utilisateur à partir du token (pas du paramètre)
-    const user = req.user; // Assurez-vous que le middleware getUserFromToken ajoute l'utilisateur dans la requête
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Vérifier s'il y a une image uploadée
-    if (req.file) {
-      // Si une nouvelle image est téléchargée, on met à jour l'URL dans le modèle utilisateur
-      user.image = req.file.path;
-    }
-
-    // Mettre à jour les autres informations de l'utilisateur
-    Object.assign(user, req.body);
-    await user.save();
-
-    res.status(200).json({ message: "Profile updated successfully", user });
-  } catch (error) {
-    res.status(500).json({ message: "Error updating profile", error: error.message });
-  }
-};*/
-/*const updateProfile = async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    // Vérifier s'il y a une image uploadée
-    if (!req.file) {
-      return res.status(400).json({ message: "No image uploaded" });
-    }
-    // Mettre à jour l'image de l'utilisateur avec l'URL Cloudinary
-    user.image = req.file.path; // req.file.path contient l'URL Cloudinary de l'image uploadée
-    Object.assign(user, req.body);
-    await user.save();
-    res.status(200).json({ message: "Profile updated successfully", user }); 
-  } catch (error) {
-    res.status(500).json({ message: "Error updating profile", error: error.message });
-  }
-};*/
 
 
 
