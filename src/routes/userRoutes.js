@@ -30,5 +30,6 @@ router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
 router.get("/userProfile", userProfile);
 router.put("/changeStatus/:id", changeUserStatus);
+app.put("/update-profile", upload, updateProfile);
 
 module.exports = router;

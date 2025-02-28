@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
     required: false,
     default: undefined
   },
+  image: { type: String, default: undefined },
   resetPasswordToken: {
     type: String,
     select: false
