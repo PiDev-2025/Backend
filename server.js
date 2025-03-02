@@ -65,25 +65,25 @@ const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 
-
 // Routes
 app.use("/auth", authRoutes);
-
 app.use("/User", userRoutes);
 app.use("/api", claimRoutes);
 app.use("/api", contractRoutes);
-app.use("/api", parkingRoutes);
 app.use("/api", reportRoutes);
 app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 
+app.use('/parking', parkingRoutes); 
 
 
 // Simple Route
 app.get("/", (req, res) => {
   res.send("MongoDB is connected to Express!");
 });
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 
 // Handle preflight requests

@@ -178,15 +178,18 @@ const loginVerifyOTP = async (req, res) => {
   }
 };
 
-// **Get All Users**
-const getUsers = async (req, res) => {
+const getUsers = async () => {
   try {
     const users = await User.find();
-    res.status(200).json(users);
+    if (!users.length) {
+      throw new Error("No users found");
+    }
+    return users; // Ne pas utiliser res ici
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw new Error(error.message);
   }
 };
+
 
 // **Get User By ID**
 const getUserById = async (req, res) => {
@@ -215,7 +218,6 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // **Delete User**
 const deleteUser = async (req, res) => {
   try {
@@ -228,12 +230,9 @@ const deleteUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 const authenticateUser = (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
-
   if (!token) return res.status(403).json({ message: "Access Denied" });
-
   try {
     req.user = authenticateToken(token);
     next();
@@ -241,7 +240,6 @@ const authenticateUser = (req, res, next) => {
     res.status(403).json({ message: "Invalid Token" });
   }
 };
-
 // Vérification de l'email (existe déjà ou non)
 const checkEmailValidation = async (req, res) => {
   try {

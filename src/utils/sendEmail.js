@@ -1,6 +1,10 @@
 const nodemailer = require('nodemailer');
 
+
 const sendEmail = async (options) => {
+  if (!options.email || !options.subject || !options.message) {
+    throw new Error('Les paramètres de l\'email sont incomplets');
+  }
   const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
