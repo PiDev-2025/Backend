@@ -75,7 +75,7 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 
-app.use('/parking', parkingRoutes); 
+app.use('/parkings', parkingRoutes); 
 
 
 // Simple Route
