@@ -12,8 +12,8 @@ const parkingRequestSchema = new mongoose.Schema({
   availableSpots: { type: Number, required: true },
   pricing: {
     perHour: { type: Number, required: true },
-    perDay: { type: Number, required: true },
-    perWeek: { type: Number, required: true }
+    perDay: { type: Number, required: false },
+    perWeek: { type: Number, required: false }
   },
   vehicleTypes: {
     type: [String],

@@ -16,7 +16,7 @@ const {
   updateParking, 
   deleteParking 
 } = require("../services/parkingService");
-router.put('/requests/:id', express.json(), express.urlencoded({ extended: true }), verifyToken, verifyRole("Admin"), upload, async (req, res) => {
+router.put('/requests/:id', express.json(), express.urlencoded({ extended: true }), upload, async (req, res) => {
   const { status } = req.body;
   const requestId = req.params.id;
 
@@ -94,6 +94,26 @@ router.put('/requests/:id', express.json(), express.urlencoded({ extended: true 
 
 
 
+
+router.get("/requests", express.urlencoded({ extended: true }),  async (req, res) => {
+  try {
+    const parkingRequests = await ParkingRequest.find().populate("Owner", "name email").populate("parkingId");
+    res.status(200).json(parkingRequests);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération des demandes de parking", error });
+  }
+});
+router.get("/requests/:id",  express.urlencoded({ extended: true }), verifyToken, verifyRole("Admin"),async (req, res) => {
+  try {
+    const parkingRequest = await ParkingRequest.findById(req.params.id).populate("Owner", "name email").populate("parkingId");
+    if (!parkingRequest) {
+      return res.status(404).json({ message: "Demande de parking non trouvée" });
+    }
+    res.status(200).json(parkingRequest);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération de la demande de parking", error });
+  }
+});
 // ✅ Fonction pour supprimer une requête
 async function deleteRequest(requestId) {
   try {
@@ -162,8 +182,6 @@ router.post('/submit', express.json(), express.urlencoded({ extended: true }), v
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 });
-
-
 // Route pour créer un parking (pour Admin ou Owner uniquement)
 router.post("/parkings", verifyToken, verifyRole("Admin", "Owner"), createParking);
 
