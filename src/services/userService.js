@@ -108,57 +108,6 @@ const userProfile = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-//get user Information from Token
-//hedhy thenya
-/*
-const userProfile = async (req, res) => {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    // Décoder le token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Vérifier quelle clé contient l'ID utilisateur
-    const userId = decoded.userId || decoded.id || decoded._id; // Adaptation possible selon ton token
-
-    if (!userId) {
-      return res.status(400).json({ message: "Invalid token structure" });
-    }
-
-    // Rechercher l'utilisateur
-    const user = await User.findById(userId);
-    
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.status(200).json(user);
-  } catch (error) {
-    console.error("Error in userProfile:", error.message);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};*/
-/*const userProfile = async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1]; // Récupérer le token Bearer
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    const user = await getUserByIdFromToken(token);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.status(200).json(user);
-  } catch (error) {
-    console.error("Error in userProfile:", error.message);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};*/
 
 // **Verify Signup OTP**
 const verifyOTP = async (req, res) => {

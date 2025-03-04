@@ -81,6 +81,8 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
+const parkingRequestRoute = require("./src/routes/parkingRequestRoute.js");
+
 
 
 // Routes
@@ -94,6 +96,7 @@ app.use("/api", reportRoutes);
 app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
+app.use("/api",parkingRequestRoute);
 
 
 

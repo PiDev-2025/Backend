@@ -29,26 +29,6 @@ const getUserFromToken = async (req, res, next) => {
   }
 };
 
-/*const getUserFromToken = async (req, res, next) => {
-  try {
-    const token = req.header("Authorization").replace("Bearer ", "");
-    if (!token) {
-      return res.status(401).json({ message: "Authentication failed. Token missing." });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    req.user = user; // Attach user to request object
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Authentication failed.", error: error.message });
-  }
-};*/
 
 // Cloudinary configuration
 cloudinary.config({
@@ -57,22 +37,15 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer storage configuration to upload images to Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "user_images",
-    format: async (req, file) => "jpg",  // Force JPG format
-    public_id: (req, file) => {
-      if (!file) {
-        throw new Error('No file uploaded');
-      }
-      return Date.now() + "-" + file.originalname; // Use a timestamp + original file name for the public ID
-    }
-  }
+    folder: "parking_images",
+    format: async (req, file) => "jpg",
+    public_id: (req, file) => Date.now() + "-" + file.originalname,
+  },
 });
 
-// Initialize multer to handle a single image upload
-const upload = multer({ storage }).single("image");
+const upload = multer({ storage }).array("images", 8); 
 
 module.exports = { upload, getUserFromToken };
