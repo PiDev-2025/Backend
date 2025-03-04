@@ -262,8 +262,17 @@ const loginVerifyOTP = async (req, res) => {
 
     // Generate JWT token
 
-    const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
+    const token = jwt.sign(
+      {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone // Include role in the token
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     res.status(200).json({ message: "Authentification réussie", token });
   } catch (error) {
