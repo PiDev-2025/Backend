@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { saveRequestParking, updateParkingImages } = require("../controllers/parkingRequestController"); // ✅ Corrigé !
+const { saveRequestParking, updateParkingImages } = require("../controllers/parkingRequestController");
 const { upload, getUserFromToken } = require("../middlewares/uploadMiddleware");
 
 router.post("/addParkingRequest", getUserFromToken, upload, saveRequestParking);

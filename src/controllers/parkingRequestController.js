@@ -1,5 +1,4 @@
 const ParkingRequest = require("../models/parkingRequestmodele");
-const cloudinary = require("cloudinary").v2;
 
 const updateParkingImages = async (req, res) => {
     try {
