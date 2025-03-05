@@ -15,7 +15,8 @@ const {
   loginVerifyOTP,
   userProfile,
   changeUserStatus,
-  updateProfile
+  updateProfile,
+  createUser // Import the createUser function
 } = require("../services/userService");
 
 
@@ -25,6 +26,7 @@ router.post("/loginAfterSignUp", loginAfterSignUp);
 router.post("/login-verify-otp", loginVerifyOTP);
 router.get("/users", getUsers);
 router.get("/users/:id", getUserById);
+router.post("/users", createUser); // Add this route to create a user
 router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
 router.post("/users/login", loginUser);

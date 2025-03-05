@@ -421,10 +421,25 @@ const updateProfile = async (req, res) => {
   }
 };
 
-
-
-
-
+// Simple createUser function
+const createUser = async (req, res) => {
+  try {
+    // Check if password exists in the request body
+    if (req.body.password) {
+      // Hash the password before saving
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(req.body.password, salt);
+      req.body.password = hashedPassword;
+    }
+    
+    const user = new User(req.body);
+    await user.save();
+    res.status(201).json(user);
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(400).json({ message: error.message });
+  }
+};
 
 module.exports = {
   checkEmailValidation,
@@ -439,5 +454,7 @@ module.exports = {
   authenticateUser,
   loginVerifyOTP,
   userProfile,
-  changeUserStatus,updateProfile
+  changeUserStatus,
+  updateProfile,
+  createUser // Add this export
 };
