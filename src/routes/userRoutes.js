@@ -34,6 +34,6 @@ router.post("/check-email", checkEmailValidation);
 router.post("/login", loginUser);
 router.get("/userProfile", userProfile);
 router.put("/changeStatus/:id", changeUserStatus);
-router.put("/update-profile", getUserFromToken, upload, updateProfile);
+router.put("/profile", getUserFromToken, upload, updateProfile);
 
 module.exports = router;
