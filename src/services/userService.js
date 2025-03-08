@@ -270,6 +270,76 @@ const loginAfterSignUp = async (req, res) => {
   res.json({ token });
 };
 
+const userProfile = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", ""); // Getting token from header
+
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    // Décoder le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Vérifier quelle clé contient l'ID utilisateur
+    const userId = decoded.userId || decoded.id || decoded._id; // Adaptation possible selon ton token
+
+    if (!userId) {
+      return res.status(400).json({ message: "Invalid token structure" });
+    }
+
+    // Rechercher l'utilisateur
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in userProfile:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    console.log("Incoming request body:", req.body);
+    console.log("Incoming file:", req.file);
+    const user = req.user; 
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("Incoming request body:", req.body);
+    console.log("Incoming file:", req.file);
+
+    // Vérifier et attribuer l'image uploadée
+    if (req.file && req.file.path) {
+      user.image = req.file.path;
+    }
+
+    // Mise à jour des champs uniquement si fournis
+    if (req.body.name) user.name = req.body.name;
+    if (req.body.email) user.email = req.body.email;
+    if (req.body.phone) user.phone = req.body.phone;
+
+    // Sauvegarde sécurisée de l'utilisateur
+    try {
+      await user.save();
+    } catch (saveError) {
+      console.error("Error saving user:", saveError);
+      return res.status(500).json({ message: "Failed to save user", error: saveError.message });
+    }
+
+    res.status(200).json({ message: "Profile updated successfully", user });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Failed to update user profile", error: error.message });
+  }
+};
+
+
 module.exports = {
   checkEmailValidation,
   loginUser,
@@ -283,4 +353,6 @@ module.exports = {
   authenticateUser,
   loginVerifyOTP,
   getUserIdFromToken,
+  userProfile,
+  updateProfile
 };

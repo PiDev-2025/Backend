@@ -1,7 +1,7 @@
 
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 4000;
 const connectDB = require("./src/config/db");
 const cors = require('cors');
 
@@ -59,11 +59,11 @@ const authRoutes = require("./src/routes/authRoutes.js");
 const userRoutes = require("./src/routes/userRoutes");
 const claimRoutes = require("./src/routes/claimRoutes");
 const contractRoutes = require("./src/routes/contractRoutes");
-const parkingRoutes = require("./src/routes/parkingRoutes");
 const reportRoutes = require("./src/routes/reportRoutes");
 const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
+const parkingRequestRoute = require ("./src/routes/parkingRequestRoute.js")
 
 // Routes
 app.use("/auth", authRoutes);
@@ -74,8 +74,8 @@ app.use("/api", reportRoutes);
 app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
+app.use("/api", parkingRequestRoute)
 
-app.use('/parkings', parkingRoutes); 
 
 
 // Simple Route
