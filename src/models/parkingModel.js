@@ -1,22 +1,36 @@
 const mongoose = require("mongoose");
 
-// Define a separate schema for position
-const positionSchema = new mongoose.Schema({
-  lat: { type: Number, required: true },
-  lon: { type: Number, required: true }
-}, { _id: false });  // _id: false prevents MongoDB from creating an _id for the subdocument
 
 const parkingSchema = new mongoose.Schema({
-  parkingId: { type: String, required: true, unique: true },
-  nameP: { type: String, required: true },
-  location: { type: String, required: true },
-  totalSpots: { type: Number, required: true },
-  availableSpots: { type: Number, required: true },
-  pricing: { type: Number, required: true },
-  position: { 
-    type: positionSchema, 
-    required: true 
-  }
+  name: { type: String, required: true },
+  description: { type: String },
+  totalSpots: { type: Number, required: true, min: 1 },
+  availableSpots: { type: Number, required: false },
+  pricing: {
+    hourly: { type: Number, required: true, min: 0 },
+    daily: { type: Number, required: false, min: 0 },
+    weekly: { type: Number, required: false, min: 0 },
+    monthly: { type: Number, required: false, min: 0 },
+  },
+  /*pricing: { type: Number, required: true },*/
+  position: {
+    type: {
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true }
+    },
+    required: true
+  },
+  features: {
+    type: [String],
+    enum: ["Indoor Parking", "Underground Parking", "Unlimited Entrances & Exits", "Extension Available"],
+    default: []
+  },
+  images: { type: [String], required: false },
+
+  id_owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
+
+  createdAt: { type: Date, default: Date.now },
+  
 }, { timestamps: true });
 
 module.exports = mongoose.model("Parking", parkingSchema);

@@ -1,8 +1,8 @@
-const ParkingRequest = require("../models/parkingRequestModel");
+const ParkingRequest = require("../models/parkingModel");
 const cloudinary = require("cloudinary").v2;
 
 // Mise à jour d'une demande de parking
-const updateParkingRequest = async (req, res) => {
+/*const updateParkingRequest = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -13,12 +13,12 @@ const updateParkingRequest = async (req, res) => {
     }
 
     // Extraire les nouvelles données du corps de la requête
-    const { name, description, location, totalSpots, vehicleType, features, pricing } = req.body;
+    const { name, description, position, totalSpots, vehicleType, features, pricing } = req.body;
 
     // Mettre à jour les champs fournis
     if (name) parking.name = name;
     if (description) parking.description = description;
-    if (location) parking.location = location;
+    if (position) parking.positionposition = position;
     if (totalSpots) parking.totalSpots = totalSpots;
     if (vehicleType) parking.vehicleType = vehicleType;
     if (features) parking.features = features;
@@ -46,8 +46,88 @@ const updateParkingRequest = async (req, res) => {
 
     return res.status(200).json({ message: "Parking request updated", parking });
   } catch (error) {
-    console.error("Error updating parking request:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Error updating parking request:", error.message, error.stack);
+    return res.status(500).json({ 
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+  
+};*/
+
+
+const updateParkingRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier si la demande de parking existe
+    const parking = await ParkingRequest.findById(id);
+    if (!parking) {
+      return res.status(404).json({ message: "Parking request not found" });
+    }
+
+    // Extraire les nouvelles données du corps de la requête
+    const { name, description, position, totalSpots, vehicleType, features, pricing } = req.body;
+
+    if (name) parking.name = name;
+    if (description) parking.description = description;
+    if (totalSpots) parking.totalSpots = parseInt(totalSpots);
+
+    // Corriger le champ pricing (erreur actuelle)
+    if (pricing) {
+      try {
+        parking.pricing = typeof pricing === "string" ? JSON.parse(pricing.trim()) : pricing;
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid pricing format. Expected JSON object." });
+      }
+    }
+
+    // Corriger le champ features (erreur actuelle)
+    if (features) {
+      try {
+        const parsedFeatures = typeof features === "string" ? JSON.parse(features) : features;
+        parking.features = parsedFeatures.map(feature => feature.trim());
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid features format. Expected an array of strings." });
+      }
+    }
+
+    // Corriger le champ position
+    if (position) {
+      try {
+        parking.position = typeof position === "string" ? JSON.parse(position) : position;
+        if (!parking.position.lat || !parking.position.lng) {
+          throw new Error("Position must have 'lat' and 'lng'.");
+        }
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid position format. Expected { lat, lng }." });
+      }
+    }
+
+    // Vérifier si des images ont été téléchargées via Cloudinary
+    if (req.files && req.files.length > 0) {
+      if (parking.images && parking.images.length > 0) {
+        await Promise.all(
+          parking.images.map(async (imageUrl) => {
+            const publicId = imageUrl.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`parking_images/${publicId}`);
+          })
+        );
+      }
+      const uploadedImages = req.files.map((file) => file.path);
+      parking.images = uploadedImages;
+    }
+
+    // Sauvegarder les modifications
+    await parking.save();
+
+    return res.status(200).json({ message: "Parking request updated", parking });
+  } catch (error) {
+    console.error("❌ Error updating parking request:", error.message, error.stack);
+    return res.status(500).json({ 
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };
 
@@ -62,16 +142,16 @@ const saveRequestParking = async (req, res) => {
         console.log("📝 Données reçues:", req.body);
 
         const imageUrls = req.files.map(file => file.path);
-        const { name, description, location, totalSpots, vehicleType, features, pricing } = req.body;
+        const { name, description, position, totalSpots, vehicleType, features, pricing } = req.body;
 
-        if (!name || !location || !totalSpots || !vehicleType || !pricing) {
+        if (!name || !position || !totalSpots || !vehicleType || !pricing) {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
-        // ✅ Vérification de la validité de location
+   
         let parsedLocation;
         try {
-            parsedLocation = typeof location === "string" ? JSON.parse(location) : location;
+          parsedLocation = typeof position === "string" ? JSON.parse(position) : position;
             if (!parsedLocation.lat || !parsedLocation.lng) {
                 throw new Error("Location must have 'lat' and 'lng'.");
             }
@@ -89,9 +169,9 @@ const saveRequestParking = async (req, res) => {
         const newParking = new ParkingRequest({
             name,
             description,
-            location: parsedLocation,  // ✅ Maintenant location est un objet
+            position: parsedLocation,  // ✅ Maintenant location est un objet
             totalSpots: parseInt(totalSpots),
-            vehicleType: parsedVehicleType,  // ✅ Assurez-vous que vehicleType est un tableau
+            vehicleType: parsedVehicleType,  
             features: parsedFeatures || [],
             pricing: parsedPricing,
             images: imageUrls,
@@ -106,6 +186,15 @@ const saveRequestParking = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 };
+const getParkings = async (req, res) => {
+  try {
+    const parkings = await Parking.find().populate("id_owner"); // Récupère tous les parkings avec infos du propriétaire
+    res.status(200).json(parkings);
+  } catch (error) {
+    console.error("❌ Error fetching parkings:", error.message);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
 
 
-module.exports = { saveRequestParking, updateParkingRequest };
+module.exports = { saveRequestParking, updateParkingRequest, getParkings };
