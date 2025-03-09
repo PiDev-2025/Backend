@@ -1,5 +1,8 @@
 const express = require("express");
 const app = express();
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs')
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
 const cors = require("cors");
@@ -28,6 +31,10 @@ const corsOptions = {
   credentials: true,
 };
 
+const storage = multer.memoryStorage(); // Utilise la mémoire pour stocker les fichiers temporaires
+const upload = multer({ storage: storage });
+
+
 // Apply CORS Middleware
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Handle preflight requests
@@ -49,17 +56,6 @@ app.use(
 const passport = require("./src/config/passport");
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Multer Configuration for Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "user_images",
-    format: async (req, file) => "jpg",
-    public_id: (req, file) => req.user._id,
-  },
-});
-const upload = multer({ storage }).single("image");
 
 // Import Routes
 const authRoutes = require("./src/routes/authRoutes");
@@ -87,6 +83,34 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use("/api", parkingRequestRoutes);
+app.use(express.json());
+
+// Route pour uploader les images
+app.post('/upload-images', upload.array('images'), async (req, res) => {  // "images" doit correspondre au champ envoyé
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).send('No images uploaded');
+    }
+
+    const formData = new FormData();
+    req.files.forEach(file => {
+      formData.append('images', file.buffer, file.originalname);
+    });
+
+    const response = await axios.post('https://api.kiriengine.app/upload', formData, {
+      headers: {
+        ...formData.getHeaders(),
+        // Ajouter un header d'authentification si nécessaire
+      },
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error uploading images:', error.response ? error.response.data : error.message);
+    res.status(500).send('Error uploading images');
+  }
+});
+
 
 // Test Route
 app.get("/", (req, res) => {
