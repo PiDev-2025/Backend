@@ -26,7 +26,8 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: {
     type: Date,
     select: false
-  }
+  },
+  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Favorite' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

@@ -27,7 +27,6 @@ const verifyToken = async (req, res, next) => {
     }
 };
 
-
 const verifyRole = (...roles) => {
     return (req, res, next) => {
         console.log("Role de l'utilisateur:", req.user.role); // Debugging the user's role
@@ -37,7 +36,5 @@ const verifyRole = (...roles) => {
         next();
     };
 };
-
-
 
 module.exports = { verifyToken, verifyRole };
