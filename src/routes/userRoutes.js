@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { upload, getUserFromToken } = require("../middlewares/uploadMiddleware");
+const { verifyToken } = require("../middlewares/authMiddleware");
 
 const {
   checkEmailValidation,
@@ -16,9 +17,10 @@ const {
   userProfile,
   changeUserStatus,
   updateProfile,
-  createUser // Import the createUser function
+  createUser, // Import the createUser function
+  addFavorite,
+  removeFavorite
 } = require("../services/userService");
-
 
 router.post("/signup", signup);
 router.post("/verify-otp", verifyOTP);
@@ -35,5 +37,8 @@ router.post("/login", loginUser);
 router.get("/userProfile", userProfile);
 router.put("/changeStatus/:id", changeUserStatus);
 router.put("/profile", getUserFromToken, upload, updateProfile);
+
+router.post("/favorites/add/:parkingId", verifyToken, addFavorite);
+router.delete("/favorites/remove/:parkingId", verifyToken, removeFavorite);
 
 module.exports = router;
