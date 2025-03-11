@@ -42,6 +42,7 @@ const parkingSchema = new mongoose.Schema({
     default: []
   },
   Owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  id_employee: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
   images: [String]
 }, { timestamps: true });
 
