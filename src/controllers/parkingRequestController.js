@@ -55,7 +55,6 @@ const cloudinary = require("cloudinary").v2;
   
 };*/
 
-
 const updateParkingRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -197,4 +196,4 @@ const getParkings = async (req, res) => {
 };
 
 
-module.exports = { saveRequestParking, updateParkingRequest, getParkings };
+module.exports = { saveRequestParking, updateParkingRequest, getParkings};

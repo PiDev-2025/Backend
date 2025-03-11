@@ -13,6 +13,8 @@ const {
   getParkingById,
   updateParking,
   deleteParking,
+  getParkingsByEmployee,
+  updateTotalSpots
 } = require("../services/parkingService");
 
 router.use(express.json());
@@ -359,5 +361,7 @@ router.post("/parkings/availableSpots", async (req, res) => {
 
 router.put("/parkings/:id", verifyToken, verifyRole("Owner", "Admin"), updateParking);
 router.delete("/parkings/:id", verifyToken, verifyRole("Admin", "Owner"), deleteParking);
+router.get("/parkings-by-employee/:employeeId", getParkingsByEmployee); // 🔹 Nouvelle route
+router.patch("/update-total-spots/:id", updateTotalSpots);
 
 module.exports = router;

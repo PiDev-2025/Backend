@@ -37,7 +37,8 @@ const parkingRequestSchema = new mongoose.Schema({
     default: []
   },
   Owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  parkingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parking', default: null }
+  parkingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parking', default: null },
+  id_employee: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
 }, { timestamps: true });
 
 parkingRequestSchema.index({ name: 1, position: 1, Owner: 1 }, { unique: true });
