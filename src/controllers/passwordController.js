@@ -1,24 +1,24 @@
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const User = require('../models/userModel');
-const sendEmail = require('../utils/sendEmail');
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+const User = require("../models/userModel");
+const sendEmail = require("../utils/sendEmail");
 
 exports.sendResetPasswordEmail = async (req, res) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const token = crypto.randomBytes(20).toString('hex');
+    const token = crypto.randomBytes(20).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
     // Force the frontend URL without using any variables
-    const resetUrl = 'http://localhost:3000/reset-password/' + token;
-    
+    const resetUrl = "http://localhost:3000/reset-password/" + token;
+
     const message = `
 Hello,
 
@@ -36,20 +36,20 @@ Your App Team`;
 
     await sendEmail({
       email: user.email,
-      subject: 'Password Reset Request',
+      subject: "Password Reset Request",
       message,
     });
 
-    res.status(200).json({ 
-      message: 'Password reset email sent successfully',
+    res.status(200).json({
+      message: "Password reset email sent successfully",
       success: true,
-      resetUrl // Include the URL in the response for debugging
+      resetUrl, // Include the URL in the response for debugging
     });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ 
-      message: 'Error sending password reset email',
-      success: false 
+    console.error("Error:", error);
+    res.status(500).json({
+      message: "Error sending password reset email",
+      success: false,
     });
   }
 };
@@ -57,48 +57,48 @@ Your App Team`;
 exports.resetPassword = async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
-  
+
   try {
     // Enhanced validation
     if (!token) {
       return res.status(400).json({
-        message: 'Reset token is missing',
-        success: false
+        message: "Reset token is missing",
+        success: false,
       });
     }
 
     if (!password || password.length < 6) {
       return res.status(400).json({
-        message: 'Password is required and must be at least 6 characters long',
-        success: false
+        message: "Password is required and must be at least 6 characters long",
+        success: false,
       });
     }
 
     // Find user and ensure token hasn't expired
     const user = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
-    }).select('+password');
+      resetPasswordExpires: { $gt: Date.now() },
+    }).select("+password");
 
     if (!user) {
       // Log detailed information for debugging
-      console.log('Reset attempt failed:', {
+      console.log("Reset attempt failed:", {
         providedToken: token,
         currentTime: new Date(),
-        tokenExists: Boolean(token)
+        tokenExists: Boolean(token),
       });
-      
+
       return res.status(400).json({
-        message: 'Invalid or expired password reset token',
-        success: false
+        message: "Invalid or expired password reset token",
+        success: false,
       });
     }
 
     // Log successful user find
-    console.log('User found:', {
+    console.log("User found:", {
       userId: user._id,
       tokenExpiry: user.resetPasswordExpires,
-      currentTime: new Date()
+      currentTime: new Date(),
     });
 
     // Hash new password
@@ -113,16 +113,15 @@ exports.resetPassword = async (req, res) => {
     await user.save();
 
     res.status(200).json({
-      message: 'Password reset successful',
-      success: true
+      message: "Password reset successful",
+      success: true,
     });
-
   } catch (error) {
-    console.error('Password reset error:', error);
+    console.error("Password reset error:", error);
     res.status(500).json({
-      message: 'Internal server error during password reset',
+      message: "Internal server error during password reset",
       success: false,
-      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+      debug: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
