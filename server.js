@@ -14,7 +14,14 @@ connectDB();
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 // CORS Configuration
-const allowedOrigins = ["http://localhost:3000", "http://127.0.0.1:5500"];
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5500",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5500",
+  "http://127.0.0.1:5173",
+];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -23,7 +30,7 @@ const corsOptions = {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "PUT","PATCH" , "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
@@ -70,10 +77,8 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
-const parkingRequestRoutes = require ("./src/routes/parkingRequestRoute");
+const parkingRequestRoutes = require("./src/routes/parkingRequestRoute");
 const parkingRoutes = require("./src/routes/parkingRoutes");
-
-
 
 // Define Routes
 app.use("/auth", authRoutes);
@@ -87,8 +92,7 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use("/api", parkingRequestRoutes);
-app.use('/parkings', parkingRoutes); 
-
+app.use("/parkings", parkingRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
