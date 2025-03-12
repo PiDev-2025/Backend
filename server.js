@@ -14,7 +14,7 @@ connectDB();
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 // CORS Configuration
-const allowedOrigins = ["http://localhost:3000", "http://127.0.0.1:5500"];
+const allowedOrigins = ["http://localhost:3000", "http://localhost:5173"];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
