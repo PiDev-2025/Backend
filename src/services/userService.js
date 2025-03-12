@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/SignUpMailVerif");
 const { authenticateToken, generateToken } = require("../utils/token");
+const Favorite = require("../models/favoriteModel");
 
 // Function to generate a random OTP
 const generateOTP = () =>
@@ -450,6 +451,33 @@ const createUser = async (req, res) => {
   }
 };
 
+const addFavorite = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { parkingId } = req.params;
+
+    const favorite = new Favorite({ user: userId, parking: parkingId });
+    await favorite.save();
+
+    res.status(201).json({ success: true, favorite });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const removeFavorite = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { parkingId } = req.params;
+
+    await Favorite.findOneAndDelete({ user: userId, parking: parkingId });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   checkEmailValidation,
   loginUser,
@@ -465,5 +493,7 @@ module.exports = {
   userProfile,
   changeUserStatus,
   updateProfile,
-  createUser // Add this export
+  createUser, // Add this export
+  addFavorite,
+  removeFavorite
 };
