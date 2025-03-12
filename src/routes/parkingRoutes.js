@@ -21,7 +21,7 @@ router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 
 /**
- * ✅ Met à jour une demande de parking
+ * ✅ Met à jour une demande de parking et la supprime après modification du statut
  */
 router.put('/requests/:id', verifyToken, verifyRole("Admin"), upload, async (req, res) => {
   try {
@@ -55,13 +55,13 @@ router.put('/requests/:id', verifyToken, verifyRole("Admin"), upload, async (req
       parkingRequest.images = req.files.map((file) => file.path);
     }
 
+    let parking;
     if (status === "accepted") {
       // ✅ Vérifier que toutes les données requises sont bien présentes
       if (!parkingRequest.images || parkingRequest.images.length !== 4) {
         return res.status(400).json({ message: "Erreur : La demande doit contenir exactement 4 images." });
       }
 
-      let parking;
       if (parkingRequest.parkingId) {
         // ✅ Mettre à jour un parking existant
         parking = await Parking.findByIdAndUpdate(
@@ -110,13 +110,8 @@ router.put('/requests/:id', verifyToken, verifyRole("Admin"), upload, async (req
         });
 
         await parking.save();
-        parkingRequest.parkingId = parking._id;
       }
     }
-
-    // ✅ Mise à jour du statut de la demande
-    parkingRequest.status = status;
-    await parkingRequest.save();
 
     // ✅ Envoi d'un email au propriétaire
     const ownerEmail = parkingRequest.Owner?.email;
@@ -132,13 +127,17 @@ router.put('/requests/:id', verifyToken, verifyRole("Admin"), upload, async (req
       }
     }
 
-    res.status(200).json({ message: `Demande ${status}`, parkingRequest });
+    // ✅ Suppression de la demande après mise à jour du statut
+    await ParkingRequest.findByIdAndDelete(requestId);
+
+    res.status(200).json({ message: `Demande ${status} et supprimée`, parking });
 
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la demande :", error);
     res.status(500).json({ message: "Erreur lors de la mise à jour", error: error.message });
   }
 });
+
 
 
 /**
@@ -356,8 +355,6 @@ router.post("/parkings/availableSpots", async (req, res) => {
     res.status(500).json({ message: "Erreur serveur lors de la récupération des parkings", error: error.message });
   }
 });
-
-
 
 router.put("/parkings/:id", verifyToken, verifyRole("Owner", "Admin"), updateParking);
 router.delete("/parkings/:id", verifyToken, verifyRole("Admin", "Owner"), deleteParking);
