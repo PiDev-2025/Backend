@@ -296,6 +296,29 @@ router.get("/parkings/:id", async (req, res) => {
     });
   }
 });
+router.get("/check-pending/:parkingId", async (req, res) => {
+  try {
+    const { parkingId } = req.params;
+
+    const existingRequest = await ParkingRequest.findOne({
+      parkingId,
+      status: "pending",
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        message: "Une demande de mise à jour est déjà en attente pour ce parking.",
+      });
+    }
+
+    return res.status(200).json({ message: "Aucune requête en attente." });
+  } catch (error) {
+    console.error("❌ Erreur lors de la vérification des requêtes :", error);
+    return res.status(500).json({
+      message: "Erreur serveur lors de la vérification des requêtes.",
+    });
+  }
+});
 
 /**
  * ✅ Rechercher des parkings par localisation avec coordonnées `{ lat, lng }`
@@ -325,6 +348,26 @@ router.post("/parkings/position", async (req, res) => {
     res.status(500).json({ message: "Erreur serveur lors de la récupération des parkings", error: error.message });
   }
 });
+router.get("/my-parkings", verifyToken, async (req, res) => {
+  try {
+    const ownerId = req.user.id; // Récupérer l'ID de l'Owner à partir du token
+
+    const parkings = await Parking.find({ Owner: ownerId }).populate("Owner", "name email");
+
+    if (parkings.length === 0) {
+      return res.status(404).json({ message: "Aucun parking trouvé pour cet utilisateur" });
+    }
+
+    res.status(200).json(parkings);
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération des parkings de l'Owner :", error);
+    res.status(500).json({
+      message: "Erreur serveur lors de la récupération des parkings",
+      error: error.message,
+    });
+  }
+});
+
 
 /**
  * ✅ Rechercher des parkings par nombre de places disponibles
