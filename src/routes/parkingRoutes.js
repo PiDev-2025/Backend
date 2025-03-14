@@ -6,6 +6,8 @@ const Parking = require("../models/parkingModel");
 const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const upload = require("../middlewares/uploadMidd").upload;
 const { validateParkingData } = require("../utils/validation");
+const User = require("../models/userModel");
+
 
 const {
   createParking,
@@ -352,7 +354,9 @@ router.get("/my-parkings", verifyToken, async (req, res) => {
   try {
     const ownerId = req.user.id; // Récupérer l'ID de l'Owner à partir du token
 
-    const parkings = await Parking.find({ Owner: ownerId }).populate("Owner", "name email");
+    const parkings = await Parking.find({ Owner: ownerId })
+      .populate("Owner", "name email") // Récupérer les infos du propriétaire
+      .populate("id_employee", "name"); // 🔥 Récupérer le nom de l'employé assigné
 
     if (parkings.length === 0) {
       return res.status(404).json({ message: "Aucun parking trouvé pour cet utilisateur" });
@@ -367,6 +371,56 @@ router.get("/my-parkings", verifyToken, async (req, res) => {
     });
   }
 });
+
+router.put("/assign-employee/:parkingId/:employeeId", verifyToken, verifyRole("Owner"), async (req, res) => {
+  try {
+      const { parkingId, employeeId } = req.params;
+
+      console.log(`🚀 Assignation employé - Parking: ${parkingId}, Employé: ${employeeId}`);
+
+      // Vérifier si le parking existe
+      const parking = await Parking.findById(parkingId);
+      if (!parking) {
+          console.log("❌ Parking non trouvé");
+          return res.status(404).json({ message: "Parking non trouvé" });
+      }
+      console.log(`✅ Parking trouvé: ${parking.name}`);
+
+      // Vérifier si l'utilisateur connecté est bien le propriétaire du parking
+      console.log(`🔍 ID propriétaire attendu: ${parking.Owner.toString()}, ID connecté: ${req.user.id}`);
+      if (parking.Owner.toString() !== req.user.id) {
+          console.log("❌ Accès interdit: l'utilisateur n'est pas le propriétaire");
+          return res.status(403).json({ message: "Accès interdit : vous n'êtes pas le propriétaire de ce parking" });
+      }
+      console.log("✅ Propriétaire vérifié");
+
+      // Vérifier si l'employé existe et a le rôle "Employe"
+      const employee = await User.findById(employeeId);
+      if (!employee) {
+          console.log("❌ Employé non trouvé");
+          return res.status(404).json({ message: "Employé non trouvé" });
+      }
+
+      if (employee.role !== "Employe") {
+          console.log("❌ L'utilisateur sélectionné n'est pas un employé valide");
+          return res.status(400).json({ message: "L'utilisateur sélectionné n'est pas un employé valide" });
+      }
+      console.log(`✅ Employé trouvé: ${employee.name}`);
+
+      // Assigner l'employé au parking
+      parking.id_employee = employeeId;
+      await parking.save();
+      console.log(`✅ Employé assigné: ${employeeId} au parking: ${parkingId}`);
+
+      res.status(200).json({ message: "Employé assigné avec succès", parking });
+
+  } catch (error) {
+      console.error("💥 Erreur serveur:", error);
+      res.status(500).json({ message: "Erreur serveur", error: error.message || error });
+  }
+});
+
+
 
 
 /**
