@@ -16,11 +16,13 @@ const {
   updateParking,
   deleteParking,
   getParkingsByEmployee,
-  updateTotalSpots
+  updateTotalSpots,
+  saveParking3D
 } = require("../services/parkingService");
 
 router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
+router.patch('/:id', saveParking3D);
 
 /**
  * ✅ Met à jour une demande de parking et la supprime après modification du statut

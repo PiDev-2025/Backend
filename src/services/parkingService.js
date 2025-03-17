@@ -412,6 +412,51 @@ const approveParkingRequest = async (req, res) => {
   }
 };
 
+const saveParking3D = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { spots, layout, totalSpots, availableSpots } = req.body;
+
+    // Recherche du parking existant
+    const parking = await Parking.findById(id);
+    
+    if (!parking) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Parking non trouvé" 
+      });
+    }
+
+    // Mise à jour seulement des champs fournis
+    const updateData = {};
+    
+    if (spots) updateData.spots = spots;
+    if (layout) updateData.layout = layout;
+    if (totalSpots !== undefined) updateData.totalSpots = totalSpots;
+    if (availableSpots !== undefined) updateData.availableSpots = availableSpots;
+
+    // Mise à jour partielle qui ignore les validateurs pour les champs non mis à jour
+    const updatedParking = await Parking.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Plan de parking mis à jour avec succès",
+      data: updatedParking
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du parking:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour du parking",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createParking,
   getParkings,
@@ -421,4 +466,5 @@ module.exports = {
   approveParkingRequest,
   getParkingsByEmployee,
   updateTotalSpots,
+  saveParking3D
 };
