@@ -77,7 +77,6 @@ const parkingRoutes = require("./src/routes/parkingRoutes");
 // Define Routes
 app.use("/auth", authRoutes);
 
-// This line in server.js is using '/User' which matches what the frontend is using
 app.use("/User", userRoutes);
 app.use("/api", claimRoutes);
 app.use("/api", contractRoutes);
@@ -86,7 +85,7 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
-
+app.use('/api/reservations', reservationRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
