@@ -25,7 +25,7 @@ router.use(express.urlencoded({ extended: true }));
 /**
  * ✅ Met à jour une demande de parking et la supprime après modification du statut
  */
-router.put('/requests/:id', verifyToken, verifyRole("Admin"), upload, async (req, res) => {
+router.put('/requests/:id', upload, async (req, res) => {
   try {
     const { status } = req.body;
     const requestId = req.params.id;
@@ -416,7 +416,7 @@ router.put("/assign-employee/:parkingId/:employeeId", verifyToken, verifyRole("O
 
   } catch (error) {
       console.error("💥 Erreur serveur:", error);
-      res.status(500).json({ message: "Erreur serveur", error: error.message || error });
+      res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 });
 
