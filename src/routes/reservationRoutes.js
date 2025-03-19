@@ -26,10 +26,7 @@ router.post('/', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Parking non trouvé' });
         }
 
-        // Vérifier si l'utilisateur fait une réservation pour son propre parking
-        if (parking.Owner.toString() === req.user.id) {
-            return res.status(403).json({ message: 'Vous ne pouvez pas réserver votre propre parking' });
-        }
+    
 
         const reservationData = {
             parkingId,
@@ -88,12 +85,46 @@ router.get('/my-reservations', verifyToken, async (req, res) => {
     })
     .populate({
       path: 'parkingId',
-      select: 'name location pricing'
+      select: 'name position location pricing totalSpots availableSpots',
+      // Assurez-vous que toutes les données nécessaires sont sélectionnées
     })
     .sort({ createdAt: -1 });
 
-    console.log(`✅ ${userReservations.length} réservations trouvées`);
-    res.status(200).json(userReservations);
+    // Validation et transformation des données
+    const formattedReservations = userReservations.map(reservation => {
+      // Vérification de l'existence du parking
+      if (!reservation.parkingId) {
+        console.warn(`⚠️ Réservation ${reservation._id} sans parking associé`);
+        return null;
+      }
+
+      // Log de débogage pour la position du parking
+      console.log(`📍 Position du parking ${reservation.parkingId._id}:`, 
+        reservation.parkingId.position);
+
+      return {
+        _id: reservation._id,
+        startTime: reservation.startTime,
+        endTime: reservation.endTime,
+        status: reservation.status,
+        vehicleType: reservation.vehicleType,
+        totalPrice: reservation.totalPrice,
+        qrCode: reservation.qrCode,
+        parkingId: {
+          _id: reservation.parkingId._id,
+          name: reservation.parkingId.name,
+          position: reservation.parkingId.position,
+          location: reservation.parkingId.location,
+          pricing: reservation.parkingId.pricing,
+          totalSpots: reservation.parkingId.totalSpots,
+          availableSpots: reservation.parkingId.availableSpots
+        },
+        createdAt: reservation.createdAt
+      };
+    }).filter(Boolean); // Supprime les réservations null
+
+    console.log(`✅ ${formattedReservations.length} réservations formatées`);
+    res.status(200).json(formattedReservations);
   } catch (error) {
     console.error("❌ Erreur:", error);
     res.status(500).json({

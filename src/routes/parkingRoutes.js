@@ -7,7 +7,8 @@ const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const upload = require("../middlewares/uploadMidd").upload;
 const { validateParkingData } = require("../utils/validation");
 const User = require("../models/userModel");
-
+const { getParkingRequestEmailTemplate } = require("../utils/emailTemplates");
+const axios = require('axios');
 
 const {
   createParking,
@@ -60,9 +61,7 @@ router.put('/requests/:id', upload, async (req, res) => {
     let parking;
     if (status === "accepted") {
       // ✅ Vérifier que toutes les données requises sont bien présentes
-      if (!parkingRequest.images || parkingRequest.images.length !== 4) {
-        return res.status(400).json({ message: "Erreur : La demande doit contenir exactement 4 images." });
-      }
+   
 
       if (parkingRequest.parkingId) {
         // ✅ Mettre à jour un parking existant
@@ -115,29 +114,38 @@ router.put('/requests/:id', upload, async (req, res) => {
       }
     }
 
-    // ✅ Envoi d'un email au propriétaire
+    
+    // ✅ Suppression de la demande après mise à jour du statut
+    await ParkingRequest.findByIdAndDelete(requestId);
+
+    res.status(200).json({ message: `Demande ${status} et supprimée`, parking });
+        // ✅ Envoi d'un email au propriétaire
+
     const ownerEmail = parkingRequest.Owner?.email;
+    const ownerName = parkingRequest.Owner?.name || 'Propriétaire';
     if (ownerEmail) {
       try {
+        const emailTemplate = getParkingRequestEmailTemplate(
+          status,
+          parkingRequest.name,
+          ownerName
+        );
         await sendEmail({
           email: ownerEmail,
-          subject: `Votre demande de parking a été ${status}`,
-          message: `Bonjour,\n\nVotre demande de parking pour ${parkingRequest.name} a été ${status}.\nMerci de votre patience.`,
+          subject: emailTemplate.subject,
+          message: emailTemplate.message,
         });
       } catch (emailError) {
         console.error("Erreur lors de l'envoi de l'email :", emailError);
       }
     }
 
-    // ✅ Suppression de la demande après mise à jour du statut
-    await ParkingRequest.findByIdAndDelete(requestId);
-
-    res.status(200).json({ message: `Demande ${status} et supprimée`, parking });
 
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la demande :", error);
     res.status(500).json({ message: "Erreur lors de la mise à jour", error: error.message });
   }
+
 });
 
 
@@ -249,17 +257,37 @@ router.post("/submit", verifyToken, upload, async (req, res) => {
  */
 router.get("/parkings", async (req, res) => {
   try {
-    // Récupère tous les parkings et populate le champ Owner pour avoir les infos du propriétaire
     const parkings = await Parking.find()
       .populate("Owner", "name email")
-      .sort({ createdAt: -1 }); // Trie par date de création (plus récent d'abord)
+      .sort({ createdAt: -1 });
     
-    if (parkings.length === 0) {
-      return res.status(200).json([]); // Retourne un tableau vide si aucun parking n'est trouvé
-    }
-    
-    console.log(`🚗 ${parkings.length} parkings récupérés avec succès`);
-    res.status(200).json(parkings);
+    // Ajouter les données météo pour chaque parking
+    const parkingsWithWeather = await Promise.all(
+      parkings.map(async (parking) => {
+        try {
+          const weatherApiKey = "78af154a62027de4c1c77739d5ea593a";
+          const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${parking.position.lat}&lon=${parking.position.lng}&appid=${weatherApiKey}&units=metric&lang=fr`;
+          const weatherResponse = await axios.get(weatherUrl);
+          
+          return {
+            ...parking.toObject(),
+            weather: {
+              temperature: Math.round(weatherResponse.data.main.temp),
+              description: weatherResponse.data.weather[0].description,
+              // Modification de l'URL de l'icône pour utiliser HTTPS
+              icon: `https://openweathermap.org/img/wn/${weatherResponse.data.weather[0].icon}@4x.png`,
+              humidity: weatherResponse.data.main.humidity,
+              windSpeed: weatherResponse.data.wind.speed
+            }
+          };
+        } catch (weatherError) {
+          console.error("Erreur météo pour parking:", parking._id, weatherError);
+          return parking;
+        }
+      })
+    );
+
+    res.status(200).json(parkingsWithWeather);
   } catch (error) {
     console.error("❌ Erreur lors de la récupération des parkings:", error);
     res.status(500).json({ 
@@ -276,24 +304,37 @@ router.get("/parkings/:id", async (req, res) => {
   try {
     const parkingId = req.params.id;
     
-    // Vérifie si l'ID est au format valide pour MongoDB
-    if (!parkingId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ message: "ID de parking invalide" });
-    }
-    
     const parking = await Parking.findById(parkingId)
       .populate("Owner", "name email");
       
     if (!parking) {
       return res.status(404).json({ message: "Parking non trouvé" });
     }
+
+    // Add weather information
+    const weatherApiKey = "78af154a62027de4c1c77739d5ea593a";
+    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${parking.position.lat}&lon=${parking.position.lng}&appid=${weatherApiKey}&units=metric&lang=fr`;
     
-    console.log(`🚗 Parking ${parkingId} récupéré avec succès`);
-    res.status(200).json(parking);
+    const weatherResponse = await axios.get(weatherUrl);
+    const weatherData = {
+      temperature: Math.round(weatherResponse.data.main.temp),
+      feelsLike: Math.round(weatherResponse.data.main.feels_like),
+      humidity: weatherResponse.data.main.humidity,
+      description: weatherResponse.data.weather[0].description,
+      icon: `http://openweathermap.org/img/w/${weatherResponse.data.weather[0].icon}@4x.png`,
+      windSpeed: weatherResponse.data.wind.speed
+    };
+
+    const parkingWithWeather = {
+      ...parking.toObject(),
+      weather: weatherData
+    };
+    
+    res.status(200).json(parkingWithWeather);
   } catch (error) {
-    console.error(`❌ Erreur lors de la récupération du parking ${req.params.id}:`, error);
+    console.error(`❌ Error:`, error);
     res.status(500).json({ 
-      message: "Erreur serveur lors de la récupération du parking", 
+      message: "Server error",
       error: error.message 
     });
   }
