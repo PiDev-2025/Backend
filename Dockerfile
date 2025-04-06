@@ -1,30 +1,20 @@
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-# Optimiser npm install
-RUN npm ci --only=production --no-audit --no-optional
-
-COPY . .
-RUN npm run build && npm prune --production
-
 FROM node:18-alpine
+
 WORKDIR /app
-# Copier seulement les fichiers nécessaires
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY package.json ./
 
-# Ajouter des optimisations système
-RUN addgroup -g 1001 nodejs && \
-    adduser -S -u 1001 -G nodejs nodejs && \
-    chown -R nodejs:nodejs /app
-USER nodejs
+# Copy only package files first
+COPY package.json package-lock.json* ./
 
-ENV NODE_ENV=production
+# Install dependencies
+RUN npm install
 
-# Cleanup
-RUN npm cache clean --force && \
-    rm -rf /tmp/*
+# Copy source code
+COPY src/ ./src/
+COPY .env ./
+
+# Other configuration files if needed
+COPY tsconfig*.json ./ || true
+COPY jest.config.js ./ || true
 
 EXPOSE 3001
 CMD ["npm", "start"]
