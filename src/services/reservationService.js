@@ -7,7 +7,7 @@ const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
-  
+
   let totalPrice = 0;
 
   if (days >= 30 && pricing.monthly) {
@@ -93,33 +93,30 @@ const createReservation = async (reservationData) => {
   }
 };
 
-const updateReservationStatus = async (reservationId, status, userId) => {
-  try {
-    const reservation = await Reservation.findById(reservationId)
-      .populate('parkingId')
-      .populate('userId');
-
-    if (!reservation) throw new Error('Réservation non trouvée');
-
-    // Vérifier si l'utilisateur est le propriétaire ou l'employé du parking
-    const parking = await Parking.findById(reservation.parkingId);
-    if (parking.Owner.toString() !== userId && parking.id_employee?.toString() !== userId) {
-      throw new Error('Non autorisé à modifier cette réservation');
-    }
-
-    reservation.status = status;
-    if (status === 'accepted') {
-      // Mettre à jour le nombre de places disponibles
-      parking.availableSpots -= 1;
-      await parking.save();
-    }
-
-    await reservation.save();
-    return reservation;
-  } catch (error) {
-    throw error;
+// Fonction pour mettre à jour le statut d'une réservation
+async function updateReservationStatus(reservationId, newStatus, userId) {
+  if (!mongoose.Types.ObjectId.isValid(reservationId)) {
+    throw new Error('ID de réservation invalide');
   }
-};
+
+  // Vérifier que le statut est valide selon votre modèle
+  const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'canceled'];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error('Statut de réservation invalide');
+  }
+
+  const reservation = await Reservation.findOneAndUpdate(
+    { _id: reservationId },
+    { status: newStatus },
+    { new: true, runValidators: true }
+  );
+
+  if (!reservation) {
+    throw new Error('Réservation non trouvée');
+  }
+
+  return reservation;
+}
 
 const getReservations = async (req, res) => {
   try {

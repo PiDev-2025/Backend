@@ -21,7 +21,7 @@ exports.getUserNotifications = async (req, res) => {
             .populate('driverId', 'name email') // ou autre champ que tu veux
             .populate('ownerId', 'name email')  // optionnel, mais utile si tu veux des infos du propriétaire
             .populate('parkingId')         // tu peux aussi faire `.populate({ path: 'reservationId', populate: { path: 'parkingId' } })` si tu veux remonter plus loin
-            .populate('reservationId', 'messageRequested totalPrice startTime endTime')
+            .populate('reservationId', 'messageRequested totalPrice startTime endTime spotId status')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(Number(limit));
