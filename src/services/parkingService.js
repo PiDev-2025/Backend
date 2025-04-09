@@ -412,6 +412,160 @@ const approveParkingRequest = async (req, res) => {
   }
 };
 
+const saveParking3D = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { spots, layout, totalSpots, availableSpots } = req.body;
+
+    // Recherche du parking existant
+    const parking = await Parking.findById(id);
+    
+    if (!parking) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Parking non trouvé" 
+      });
+    }
+
+    // Mise à jour seulement des champs fournis
+    const updateData = {};
+    
+    if (spots) updateData.spots = spots;
+    if (layout) updateData.layout = layout;
+    if (totalSpots !== undefined) updateData.totalSpots = totalSpots;
+    if (availableSpots !== undefined) updateData.availableSpots = availableSpots;
+
+    // Mise à jour partielle qui ignore les validateurs pour les champs non mis à jour
+    const updatedParking = await Parking.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Plan de parking mis à jour avec succès",
+      data: updatedParking
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du parking:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour du parking",
+      error: error.message
+    });
+  }
+};
+
+const reserveParkingSpot = async (req, res) => {
+  const { parkingId, spotId } = req.params;
+  const userId = req.user._id; // Suppose que l'utilisateur est authentifié
+  
+  try {
+    // Trouver le parking avec la place spécifique
+    const parking = await Parking.findById(parkingId);
+    
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
+    
+    // Trouver l'index de la place dans le tableau des places
+    const spotIndex = parking.spots.findIndex(spot => spot.id === spotId);
+    
+    if (spotIndex === -1) {
+      return res.status(404).json({ message: "Place de parking non trouvée" });
+    }
+    
+    // Vérifier si la place est déjà occupée ou réservée
+    if (parking.spots[spotIndex].status !== 'available') {
+      return res.status(400).json({ 
+        message: "Cette place n'est pas disponible", 
+        status: parking.spots[spotIndex].status 
+      });
+    }
+    
+    // Mettre à jour le statut de la place
+    parking.spots[spotIndex].status = 'reserved';
+    parking.spots[spotIndex].reservedBy = userId;
+    parking.spots[spotIndex].reservationTime = new Date();
+    
+    // Mettre à jour le nombre de places disponibles
+    parking.availableSpots = parking.availableSpots - 1;
+    
+    // Sauvegarder les modifications
+    await parking.save();
+    
+    return res.status(200).json({
+      message: "Place réservée avec succès",
+      spot: parking.spots[spotIndex]
+    });
+    
+  } catch (error) {
+    console.error("Erreur lors de la réservation de la place:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur lors de la réservation", 
+      error: error.message 
+    });
+  }
+};
+const updateParkingSpot = async (req, res) => {
+  const { parkingId, spotId } = req.params;
+  const { status } = req.body;
+  const userId = req.user?._id;
+  
+  try {
+    // Trouver le parking avec la place spécifique
+    const parking = await Parking.findById(parkingId);
+    
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
+    
+    // Trouver l'index de la place dans le tableau des places
+    const spotIndex = parking.spots.findIndex(spot => spot.id === spotId);
+    
+    if (spotIndex === -1) {
+      return res.status(404).json({ message: "Place de parking non trouvée" });
+    }
+    
+    // Vérifier si la place est déjà occupée ou réservée
+    if (status === 'reserved' && parking.spots[spotIndex].status !== 'available') {
+      return res.status(400).json({ 
+        message: "Cette place n'est pas disponible", 
+        status: parking.spots[spotIndex].status 
+      });
+    }
+    
+    // Mettre à jour le statut de la place
+    parking.spots[spotIndex].status = status;
+    if (status === 'reserved') {
+      parking.spots[spotIndex].reservedBy = userId;
+      parking.spots[spotIndex].reservationTime = new Date(); 
+      
+      // Mettre à jour le nombre de places disponibles
+      parking.availableSpots = Math.max(0, parking.availableSpots - 1);
+    } else if (status === 'available' && parking.spots[spotIndex].status !== 'available') {
+      // Si on libère une place, incrémenter le compteur
+      parking.availableSpots += 1;
+    }
+    
+    // Sauvegarder les modifications avec l'option validateBeforeSave désactivée
+    await parking.save({ validateBeforeSave: false });
+    
+    return res.status(200).json({
+      message: `Statut de la place mis à jour: ${status}`,
+      spot: parking.spots[spotIndex]
+    });
+    
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la place:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur lors de la mise à jour", 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createParking,
   getParkings,
@@ -421,4 +575,7 @@ module.exports = {
   approveParkingRequest,
   getParkingsByEmployee,
   updateTotalSpots,
+  saveParking3D,
+  reserveParkingSpot,
+  updateParkingSpot
 };

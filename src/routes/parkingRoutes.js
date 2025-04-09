@@ -9,6 +9,8 @@ const { validateParkingData } = require("../utils/validation");
 const User = require("../models/userModel");
 const { getParkingRequestEmailTemplate } = require("../utils/emailTemplates");
 const axios = require('axios');
+const {getUserFromToken} = require ("../middlewares/uploadMiddleware");
+
 
 const {
   createParking,
@@ -17,7 +19,9 @@ const {
   updateParking,
   deleteParking,
   getParkingsByEmployee,
-  updateTotalSpots
+  updateTotalSpots,
+  saveParking3D,
+  updateParkingSpot
 } = require("../services/parkingService");
 
 router.use(express.json());
@@ -148,7 +152,34 @@ router.put('/requests/:id', upload, async (req, res) => {
 
 });
 
-
+router.patch('/:id', saveParking3D);
+router.patch('/:parkingId/spots/:spotId', getUserFromToken, updateParkingSpot);
+router.get("/parkings/:id", async (req, res) => {
+  try {
+    const parkingId = req.params.id;
+    
+    // Vérifie si l'ID est au format valide pour MongoDB
+    if (!parkingId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "ID de parking invalide" });
+    }
+    
+    const parking = await Parking.findById(parkingId)
+      .populate("Owner", "name email");
+      
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
+    
+    console.log(`🚗 Parking ${parkingId} récupéré avec succès`);
+    res.status(200).json(parking);
+  } catch (error) {
+    console.error(`❌ Erreur lors de la récupération du parking ${req.params.id}:`, error);
+    res.status(500).json({ 
+      message: "Erreur serveur lors de la récupération du parking", 
+      error: error.message 
+    });
+  }
+});
 
 /**
  * ✅ Récupérer toutes les demandes de parking

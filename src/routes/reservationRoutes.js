@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const { verifyToken } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
@@ -10,10 +11,10 @@ router.post('/', verifyToken, async (req, res) => {
     try {
         console.log("Données reçues pour la réservation:", req.body);
         
-        const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod } = req.body;
+        const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod , spotId } = req.body;
 
         // Validation des données
-        if (!parkingId || !startTime || !endTime || !vehicleType || totalPrice === undefined) {
+        if (!parkingId || !startTime || !endTime || !vehicleType || totalPrice === undefined || !spotId) {
             return res.status(400).json({ 
                 message: 'Toutes les informations requises doivent être fournies',
                 received: { parkingId, startTime, endTime, vehicleType, totalPrice }
@@ -35,7 +36,8 @@ router.post('/', verifyToken, async (req, res) => {
             endTime,
             vehicleType,
             totalPrice,
-            paymentMethod: paymentMethod || 'cash'
+            paymentMethod: paymentMethod || 'cash',
+            spotId,
         };
         
         console.log("Données de réservation formatées:", reservationData);

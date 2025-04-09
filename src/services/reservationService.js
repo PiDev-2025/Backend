@@ -59,6 +59,7 @@ const createReservation = async (reservationData) => {
 
     const reservation = new Reservation({
       parkingId: reservationData.parkingId,
+      spotId: reservationData.spotId,
       userId: reservationData.userId,
       startTime: reservationData.startTime,
       endTime: reservationData.endTime,
@@ -82,6 +83,7 @@ const createReservation = async (reservationData) => {
 
     reservation.qrCode = await QRCode.toDataURL(qrCodeData);
     await reservation.save();
+    await notificationService.createReservationNotification(reservation, parking);
 
     console.log("✅ Réservation créée avec succès:", reservation);
     return reservation;

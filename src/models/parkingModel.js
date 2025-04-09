@@ -1,5 +1,72 @@
 const mongoose = require("mongoose");
 
+
+const ArrowSchema = new mongoose.Schema({
+  id: String,
+  x: Number,
+  y: Number,
+  width: Number,
+  length: Number,
+  rotation: Number,
+  color: {
+    type: String,
+    default: "#F5F5F5"
+  }
+});
+
+const ParkingSpotSchema = new mongoose.Schema({
+  id: String,
+  x: Number,
+  y: Number,
+  width: Number,
+  height: Number,
+  rotation: Number,
+  type: {
+    type: String,
+    enum: ['standard', 'handicap', 'electric', 'compact', 'large'],
+    default: 'standard'
+  },
+  status: {
+    type: String,
+    enum: ['available', 'occupied', 'reserved', 'maintenance'],
+    default: 'available'
+  },
+  reservedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  reservationTime: Date
+});
+
+// Nouveau schéma pour les rues
+const StreetSchema = new mongoose.Schema({
+  id: String,
+  x: Number,
+  y: Number,
+  width: Number,
+  length: Number,
+  rotation: Number,
+  hasEntrance: Boolean,
+  hasExit: Boolean
+});
+
+// Mise à jour du schéma layout pour inclure les rues
+const LayoutSchema = new mongoose.Schema({
+  width: Number,
+  height: Number,
+  backgroundImage: String,
+  backgroundColor: String,
+  streets: [StreetSchema], 
+  arrows: [ArrowSchema],
+  viewSettings: {
+    scale: { type: Number, default: 1 },
+    offsetX: { type: Number, default: 0 },
+    offsetY: { type: Number, default: 0 }
+  }
+});
+
+
 const parkingSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
@@ -19,6 +86,8 @@ const parkingSchema = new mongoose.Schema({
       message: props => `Le nombre de places disponibles ne peut pas dépasser le nombre total de places`
     }
   },
+  layout: { type: LayoutSchema },
+  spots: [ParkingSpotSchema],
   pricing: {
     hourly: { type: Number, required: true, min: 0 },
     daily: { type: Number, required: false, min: 0 },

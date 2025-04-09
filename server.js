@@ -71,6 +71,7 @@ const reservationRoutes = require("./src/routes/reservationRoutes");
 const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
+const notificationRoutes = require("./src/routes/notificationRoutes");
 
 
 
@@ -86,6 +87,7 @@ app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use('/api/reservations', reservationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
