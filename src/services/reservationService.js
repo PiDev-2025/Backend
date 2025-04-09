@@ -1,5 +1,6 @@
 const Reservation = require("../models/reservationModel");
 const Parking = require('../models/parkingModel');
+const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
 
@@ -83,7 +84,16 @@ const createReservation = async (reservationData) => {
 
     reservation.qrCode = await QRCode.toDataURL(qrCodeData);
     await reservation.save();
-    await notificationService.createReservationNotification(reservation, parking);
+    console.log("parking dataaa ", parking);
+
+    // Créer la notification
+    await notificationService.createNotification({
+      driverId: reservationData.userId,
+      ownerId : parking.get('id_owner'),
+      parkingId: reservationData.parkingId,
+      reservationId: reservation._id,
+      status: 'en_attente'
+    });
 
     console.log("✅ Réservation créée avec succès:", reservation);
     return reservation;

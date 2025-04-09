@@ -21,7 +21,7 @@ exports.getUserNotifications = async (req, res) => {
             .populate('driverId', 'name email') // ou autre champ que tu veux
             .populate('ownerId', 'name email')  // optionnel, mais utile si tu veux des infos du propriétaire
             .populate('parkingId')         // tu peux aussi faire `.populate({ path: 'reservationId', populate: { path: 'parkingId' } })` si tu veux remonter plus loin
-            .populate('reservationId', 'messageRequested totalPrice startTime endTime spotId status')
+            .populate('reservationId', 'parkingId messageRequested totalPrice startTime endTime spotId status')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(Number(limit));
@@ -89,6 +89,61 @@ exports.createNotification = async (req, res) => {
             error: error.message
         });
     }
+};
+
+// Dans notificationService.js
+exports.createNotificationFromRequest = async (req, res) => {
+    try {
+        const {
+            driverId,
+            ownerId,
+            parkingId,
+            reservationId,
+            status = 'en_attente'
+        } = req.body;
+
+        if (!driverId || !ownerId || !parkingId || !reservationId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Tous les champs (driverId, ownerId, parkingId, reservationId) sont requis.'
+            });
+        }
+
+        const notification = await this.createNotification({
+            driverId,
+            ownerId,
+            parkingId,
+            reservationId,
+            status
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Notification créée avec succès',
+            notification
+        });
+    } catch (error) {
+        console.error("❌ Erreur lors de la création de la notification :", error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur lors de la création de la notification',
+            error: error.message
+        });
+    }
+};
+
+exports.createNotification = async (notificationData) => {
+    const newNotification = new Notification({
+        driverId: notificationData.driverId,
+        ownerId: notificationData.ownerId,
+        parkingId: notificationData.parkingId,
+        reservationId: notificationData.reservationId,
+        status: notificationData.status || 'en_attente',
+        isRead: false
+    });
+
+    await newNotification.save();
+    return newNotification;
 };
 
 // Marquer une notification comme lue

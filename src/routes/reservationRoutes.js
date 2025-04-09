@@ -26,9 +26,6 @@ router.post('/', verifyToken, async (req, res) => {
     if (!parking) {
       return res.status(404).json({ message: 'Parking non trouvé' });
     }
-
-
-
     const reservationData = {
       parkingId,
       userId: req.user.id,
@@ -42,7 +39,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     console.log("Données de réservation formatées:", reservationData);
 
-    const reservation = await reservationService.createReservation(reservationData); // Utilisation du service
+    const reservation = await createReservation(reservationData); // Utilisation du service
     console.log("Réservation créée:", reservation);
 
     res.status(201).json(reservation);
