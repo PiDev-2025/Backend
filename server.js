@@ -72,7 +72,21 @@ const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
 
+// Import Monitoring
+const { register, metricsMiddleware } = require('./src/monitoring');
 
+// Ajoutez le middleware de métriques
+app.use(metricsMiddleware);
+
+// Endpoint pour les métriques Prometheus
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (err) {
+        res.status(500).end(err);
+    }
+});
 
 // Define Routes
 app.use("/auth", authRoutes);

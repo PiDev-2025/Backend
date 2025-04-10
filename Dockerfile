@@ -1,20 +1,21 @@
-FROM node:18-alpine
+# Utiliser une image officielle de Node.js
+FROM node:18
 
+# Définir le répertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copy only package files first
-COPY package.json package-lock.json* ./
+# Copier les fichiers package.json et package-lock.json
+COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Installer les dépendances
+RUN npm ci --legacy-peer-deps --no-audit
 
-# Copy source code
-COPY src/ ./src/
-COPY .env ./
 
-# Other configuration files if needed
-COPY tsconfig*.json ./ || true
-COPY jest.config.js ./ || true
+# Copier le reste des fichiers de l'application
+COPY . .
 
-EXPOSE 3001
+# Exposer le port utilisé par Express
+EXPOSE 5000
+
+# Démarrer le serveur
 CMD ["npm", "start"]
