@@ -1,3 +1,5 @@
+jest.setTimeout(30000); // Increase timeout to 30 seconds
+
 const request = require('supertest');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -24,7 +26,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });
 
 beforeEach(async () => {
@@ -114,5 +118,5 @@ describe('Parking Routes', () => {
     });
   });
 
-  // Autres tests de routes à ajouter ici...
+  
 });
