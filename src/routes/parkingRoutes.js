@@ -424,11 +424,11 @@ router.post("/parkings/position", async (req, res) => {
 });
 router.get("/my-parkings", verifyToken, async (req, res) => {
   try {
-    const ownerId = req.user.id; // Récupérer l'ID de l'Owner à partir du token
+    const ownerId = req.user.id; 
 
     const parkings = await Parking.find({ Owner: ownerId })
-      .populate("Owner", "name email") // Récupérer les infos du propriétaire
-      .populate("id_employee", "name"); // 🔥 Récupérer le nom de l'employé assigné
+      .populate("Owner", "name email") 
+      .populate("id_employee", "name");
 
     if (parkings.length === 0) {
       return res.status(404).json({ message: "Aucun parking trouvé pour cet utilisateur" });

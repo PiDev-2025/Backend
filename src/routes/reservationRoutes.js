@@ -4,10 +4,10 @@ const router = express.Router();
 const { verifyToken } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
 const Reservation = require('../models/reservationModel');
-const { createReservation, updateReservationStatus, calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation } = require('../services/reservationService');
+const { createReservation, updateReservationStatus, checkAvailability,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation } = require('../services/reservationService');
 
 // Création de réservation
-router.post('/', verifyToken, async (req, res) => {
+router.post('/reservations', verifyToken, async (req, res) => {
   try {
     console.log("Données reçues pour la réservation:", req.body);
 
@@ -75,7 +75,7 @@ router.get('/list-all', verifyToken, async (req, res) => {
 });
 
 // Mes réservations (pour l'utilisateur connecté)
-router.get('/my-reservations', verifyToken, async (req, res) => {
+router.get('/reservationsv /my-reservations', verifyToken, async (req, res) => {
   try {
     console.log("🔍 Recherche des réservations pour l'utilisateur:", req.user.id);
 
@@ -133,6 +133,29 @@ router.get('/my-reservations', verifyToken, async (req, res) => {
   }
 });
 
+router.get('/reservations/by-spot', verifyToken,  async (req, res) => {
+  try {
+    const { parkingId, spotId } = req.query;
+    
+    if (!parkingId || !spotId) {
+      return res.status(400).json({ message: "parkingId et spotId sont requis" });
+    }
+    
+    // Récupérer les réservations pour cette place de parking
+    const reservations = await Reservation.find({
+      parkingId,
+      spotId,
+      // Optionnel: filtrer par date pour n'obtenir que les réservations actuelles ou à venir
+      endTime: { $gte: new Date() } 
+    }).sort({ startTime: 1 });
+    
+    res.json(reservations);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des réservations:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // Vérification de disponibilité
 router.post('/check-availability', verifyToken, async (req, res) => {
   try {
@@ -164,7 +187,7 @@ router.post('/check-availability', verifyToken, async (req, res) => {
 });
 
 // Mise à jour du statut
-router.put('/:id/status', verifyToken, async (req, res) => {
+router.put('/reservations/:id/status', verifyToken, async (req, res) => {
   try {
     const { status } = req.body;
     const reservation = await updateReservationStatus(req.params.id, status, req.user.id);
@@ -225,6 +248,7 @@ router.get('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
 
 //  router.get("/reservations", getReservations);
 // router.get("/reservations/:id", getReservationById);

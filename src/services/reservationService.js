@@ -3,6 +3,7 @@ const Parking = require('../models/parkingModel');
 const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
+const { isValidObjectId } = require('mongoose');
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
@@ -128,6 +129,76 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
   return reservation;
 }
 
+const checkAvailability = async (req, res) => {
+  try {
+    const { parkingId, spotId } = req.params;
+    const { startTime, endTime } = req.query;
+    
+    // Validation des paramètres
+    if (!isValidObjectId(parkingId)) {
+      return res.status(400).json({ success: false, message: 'ID de parking invalide' });
+    }
+    
+    if (!spotId || !spotId.startsWith('parking-spot-')) {
+      return res.status(400).json({ success: false, message: 'ID de place invalide' });
+    }
+    
+    if (!startTime || !endTime) {
+      return res.status(400).json({ success: false, message: 'Les dates de début et de fin sont requises' });
+    }
+    
+    // Conversion et validation des dates
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: 'Dates invalides' });
+    }
+    
+    if (start >= end) {
+      return res.status(400).json({ success: false, message: 'La date de fin doit être après la date de début' });
+    }
+    
+    if (start < new Date()) {
+      return res.status(400).json({ success: false, message: 'La date de début ne peut pas être dans le passé' });
+    }
+    
+    // Recherche des réservations existantes qui se chevauchent avec la période demandée
+    const overlappingReservations = await Reservation.find({
+      parkingId,
+      spotId,
+      status: { $nin: ['rejected', 'canceled'] },
+      $or: [
+        // Début de réservation pendant la période demandée
+        { startTime: { $lt: end, $gte: start } },
+        // Fin de réservation pendant la période demandée
+        { endTime: { $gt: start, $lte: end } },
+        // Réservation englobant complètement la période demandée
+        { startTime: { $lte: start }, endTime: { $gte: end } }
+      ]
+    });
+    
+    const isAvailable = overlappingReservations.length === 0;
+    
+    return res.status(200).json({
+      success: true,
+      isAvailable,
+      message: isAvailable 
+        ? 'La place est disponible pour cette période' 
+        : 'La place n\'est pas disponible pour cette période',
+      overlappingReservations: isAvailable ? [] : overlappingReservations
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors de la vérification de disponibilité:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la vérification de disponibilité',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 const getReservations = async (req, res) => {
   try {
     const reservations = await Reservation.find()
@@ -187,7 +258,10 @@ const deleteReservation = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
+  checkAvailability,
   createReservation,
   updateReservationStatus,
   calculatePrice,
