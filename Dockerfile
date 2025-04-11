@@ -1,5 +1,5 @@
 # Utiliser une image officielle de Node.js
-FROM node:18
+FROM node:20-alpine AS builder
 
 # Définir le répertoire de travail dans le conteneur
 WORKDIR /app
@@ -15,7 +15,7 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Exposer le port utilisé par Express
-EXPOSE 5000
+EXPOSE 3001
 
 # Démarrer le serveur
 CMD ["npm", "start"]
