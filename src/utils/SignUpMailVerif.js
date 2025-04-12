@@ -256,7 +256,7 @@ const sendEmail = async (options) => {
     attachments: [
       {
         filename: "logo.png",
-        path: "./resources/ParkiniWhite.png", // Replace with the path to your logo
+        //path: "./resources/ParkiniWhite.png", // Replace with the path to your logo
         cid: "logo", // Cid to display the image directly in the HTML
       },
     ],
