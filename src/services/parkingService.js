@@ -13,7 +13,7 @@ const getParkingsByEmployee = async (req, res) => {
       return res.status(400).json({ message: "ID d'employé invalide." });
     }
 
-    // Use Owner instead of id_owner to match schema
+    // Use id_employee field to match the schema
     const parkings = await Parking.find({
       id_employee: employeeId,
     }).populate("Owner", "name email");
@@ -234,7 +234,7 @@ const updateParking = async (req, res) => {
       availableSpots,
       pricing,
       vehicleTypes,
-      features
+      features,
     } = req.body;
 
     // Vérifier si le parking existe
@@ -246,12 +246,21 @@ const updateParking = async (req, res) => {
 
     // Vérification des permissions
     if (req.user.role !== "Admin" && parking.Owner.toString() !== req.user.id) {
-      console.log("⛔ Accès refusé - L'utilisateur ne peut pas modifier ce parking");
+      console.log(
+        "⛔ Accès refusé - L'utilisateur ne peut pas modifier ce parking"
+      );
       return res.status(403).json({ message: "Accès refusé" });
     }
 
     // Vérifier que tous les champs obligatoires sont fournis
-    if (!name || !position || !totalSpots || !availableSpots || !pricing || !vehicleTypes) {
+    if (
+      !name ||
+      !position ||
+      !totalSpots ||
+      !availableSpots ||
+      !pricing ||
+      !vehicleTypes
+    ) {
       console.log("⚠️ Champs obligatoires manquants");
       return res.status(400).json({ message: "Champs obligatoires manquants" });
     }
@@ -277,7 +286,7 @@ const updateParking = async (req, res) => {
       vehicleTypes,
       features: features || [],
       images,
-      Owner: req.user._id
+      Owner: req.user._id,
     });
 
     await parkingRequest.save();
@@ -286,8 +295,10 @@ const updateParking = async (req, res) => {
     // 📌 Traitement pour les Admins (mise à jour immédiate si la demande est acceptée)
     if (req.user.role === "Admin") {
       if (parkingRequest.status === "accepted") {
-        console.log("🔄 Mise à jour immédiate du parking car l'Admin a accepté");
-        
+        console.log(
+          "🔄 Mise à jour immédiate du parking car l'Admin a accepté"
+        );
+
         const updatedParking = await Parking.findByIdAndUpdate(
           parkingId,
           {
@@ -299,24 +310,28 @@ const updateParking = async (req, res) => {
             pricing,
             vehicleTypes,
             features: features || [],
-            images
+            images,
           },
           { new: true, runValidators: true }
         );
 
         if (!updatedParking) {
           console.log("❌ Parking introuvable après mise à jour");
-          return res.status(404).json({ message: "Parking introuvable après mise à jour" });
+          return res
+            .status(404)
+            .json({ message: "Parking introuvable après mise à jour" });
         }
 
         console.log("✅ Parking mis à jour avec succès:", updatedParking);
-        return res.status(200).json({ message: "Parking mis à jour avec succès", updatedParking });
+        return res
+          .status(200)
+          .json({ message: "Parking mis à jour avec succès", updatedParking });
       }
 
       console.log("⏳ Demande en attente d'approbation Admin");
       return res.status(200).json({
         message: "Demande de mise à jour en attente d'approbation",
-        parkingRequest
+        parkingRequest,
       });
     }
 
@@ -324,37 +339,61 @@ const updateParking = async (req, res) => {
     console.log("📝 Demande de mise à jour soumise avec succès");
     return res.status(200).json({
       message: "Demande de mise à jour soumise avec succès",
-      parkingRequest
+      parkingRequest,
     });
-
   } catch (error) {
     console.error("❌ Erreur serveur:", error);
     return res.status(500).json({
       message: "Erreur serveur lors de la mise à jour du parking",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-
 const deleteParking = async (req, res) => {
   try {
-      const { id } = req.params; // Récupérer l'ID depuis les paramètres de l'URL
+    const { id } = req.params; // Récupérer l'ID depuis les paramètres de l'URL
 
-      const parking = await Parking.findById(id);
-      if (!parking) {
-          return res.status(404).json({ message: "Parking non trouvé" });
-      }
+    const parking = await Parking.findById(id);
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
 
-      await Parking.findByIdAndDelete(id);
+    await Parking.findByIdAndDelete(id);
 
-      res.status(200).json({ message: "Parking supprimé avec succès" });
+    res.status(200).json({ message: "Parking supprimé avec succès" });
   } catch (error) {
-      console.error("❌ Erreur lors de la suppression :", error);
-      res.status(500).json({ message: "Erreur interne du serveur" });
+    console.error("❌ Erreur lors de la suppression :", error);
+    res.status(500).json({ message: "Erreur interne du serveur" });
   }
 };
 
+const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
+  try {
+    const nearbyParkings = await Parking.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          distanceField: "distance",
+          spherical: true,
+          query: {
+            status: "accepted",
+            availableSpots: { $gt: 0 },
+          },
+        },
+      },
+      { $limit: limit },
+    ]);
+
+    return nearbyParkings;
+  } catch (error) {
+    console.error("Error fetching nearby parkings:", error);
+    throw error;
+  }
+};
 const approveParkingRequest = async (req, res) => {
   try {
     const requestId = req.params.id;
@@ -421,4 +460,5 @@ module.exports = {
   approveParkingRequest,
   getParkingsByEmployee,
   updateTotalSpots,
+  getNearbyRecommendedParkings,
 };
