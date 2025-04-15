@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 const ParkingRequest = require("../models/parkingRequestModel");
 const Parking = require("../models/parkingModel");
@@ -13,7 +14,7 @@ const getParkingsByEmployee = async (req, res) => {
       return res.status(400).json({ message: "ID d'employé invalide." });
     }
 
-    // Use id_employee field to match the schema
+    // Use Owner instead of id_owner to match schema
     const parkings = await Parking.find({
       id_employee: employeeId,
     }).populate("Owner", "name email");
@@ -30,6 +31,31 @@ const getParkingsByEmployee = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
+  try {
+    const nearbyParkings = await Parking.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          distanceField: "distance",
+          spherical: true,
+          query: {
+            status: "accepted",
+            availableSpots: { $gt: 0 },
+          },
+        },
+      },
+      { $limit: limit },
+    ]);
+    return nearbyParkings;
+  } catch (error) {
+    console.error("Error fetching nearby parkings:", error);
+    throw error;
   }
 };
 const updateTotalSpots = async (req, res) => {
@@ -234,7 +260,7 @@ const updateParking = async (req, res) => {
       availableSpots,
       pricing,
       vehicleTypes,
-      features,
+      features
     } = req.body;
 
     // Vérifier si le parking existe
@@ -246,21 +272,12 @@ const updateParking = async (req, res) => {
 
     // Vérification des permissions
     if (req.user.role !== "Admin" && parking.Owner.toString() !== req.user.id) {
-      console.log(
-        "⛔ Accès refusé - L'utilisateur ne peut pas modifier ce parking"
-      );
+      console.log("⛔ Accès refusé - L'utilisateur ne peut pas modifier ce parking");
       return res.status(403).json({ message: "Accès refusé" });
     }
 
     // Vérifier que tous les champs obligatoires sont fournis
-    if (
-      !name ||
-      !position ||
-      !totalSpots ||
-      !availableSpots ||
-      !pricing ||
-      !vehicleTypes
-    ) {
+    if (!name || !position || !totalSpots || !availableSpots || !pricing || !vehicleTypes) {
       console.log("⚠️ Champs obligatoires manquants");
       return res.status(400).json({ message: "Champs obligatoires manquants" });
     }
@@ -286,7 +303,7 @@ const updateParking = async (req, res) => {
       vehicleTypes,
       features: features || [],
       images,
-      Owner: req.user._id,
+      Owner: req.user._id
     });
 
     await parkingRequest.save();
@@ -295,10 +312,8 @@ const updateParking = async (req, res) => {
     // 📌 Traitement pour les Admins (mise à jour immédiate si la demande est acceptée)
     if (req.user.role === "Admin") {
       if (parkingRequest.status === "accepted") {
-        console.log(
-          "🔄 Mise à jour immédiate du parking car l'Admin a accepté"
-        );
-
+        console.log("🔄 Mise à jour immédiate du parking car l'Admin a accepté");
+        
         const updatedParking = await Parking.findByIdAndUpdate(
           parkingId,
           {
@@ -310,28 +325,24 @@ const updateParking = async (req, res) => {
             pricing,
             vehicleTypes,
             features: features || [],
-            images,
+            images
           },
           { new: true, runValidators: true }
         );
 
         if (!updatedParking) {
           console.log("❌ Parking introuvable après mise à jour");
-          return res
-            .status(404)
-            .json({ message: "Parking introuvable après mise à jour" });
+          return res.status(404).json({ message: "Parking introuvable après mise à jour" });
         }
 
         console.log("✅ Parking mis à jour avec succès:", updatedParking);
-        return res
-          .status(200)
-          .json({ message: "Parking mis à jour avec succès", updatedParking });
+        return res.status(200).json({ message: "Parking mis à jour avec succès", updatedParking });
       }
 
       console.log("⏳ Demande en attente d'approbation Admin");
       return res.status(200).json({
         message: "Demande de mise à jour en attente d'approbation",
-        parkingRequest,
+        parkingRequest
       });
     }
 
@@ -339,61 +350,37 @@ const updateParking = async (req, res) => {
     console.log("📝 Demande de mise à jour soumise avec succès");
     return res.status(200).json({
       message: "Demande de mise à jour soumise avec succès",
-      parkingRequest,
+      parkingRequest
     });
+
   } catch (error) {
     console.error("❌ Erreur serveur:", error);
     return res.status(500).json({
       message: "Erreur serveur lors de la mise à jour du parking",
-      error: error.message,
+      error: error.message
     });
   }
 };
 
+
 const deleteParking = async (req, res) => {
   try {
-    const { id } = req.params; // Récupérer l'ID depuis les paramètres de l'URL
+      const { id } = req.params; // Récupérer l'ID depuis les paramètres de l'URL
 
-    const parking = await Parking.findById(id);
-    if (!parking) {
-      return res.status(404).json({ message: "Parking non trouvé" });
-    }
+      const parking = await Parking.findById(id);
+      if (!parking) {
+          return res.status(404).json({ message: "Parking non trouvé" });
+      }
 
-    await Parking.findByIdAndDelete(id);
+      await Parking.findByIdAndDelete(id);
 
-    res.status(200).json({ message: "Parking supprimé avec succès" });
+      res.status(200).json({ message: "Parking supprimé avec succès" });
   } catch (error) {
-    console.error("❌ Erreur lors de la suppression :", error);
-    res.status(500).json({ message: "Erreur interne du serveur" });
+      console.error("❌ Erreur lors de la suppression :", error);
+      res.status(500).json({ message: "Erreur interne du serveur" });
   }
 };
 
-const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
-  try {
-    const nearbyParkings = await Parking.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [parseFloat(lng), parseFloat(lat)],
-          },
-          distanceField: "distance",
-          spherical: true,
-          query: {
-            status: "accepted",
-            availableSpots: { $gt: 0 },
-          },
-        },
-      },
-      { $limit: limit },
-    ]);
-
-    return nearbyParkings;
-  } catch (error) {
-    console.error("Error fetching nearby parkings:", error);
-    throw error;
-  }
-};
 const approveParkingRequest = async (req, res) => {
   try {
     const requestId = req.params.id;
@@ -451,6 +438,160 @@ const approveParkingRequest = async (req, res) => {
   }
 };
 
+const saveParking3D = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { spots, layout, totalSpots, availableSpots } = req.body;
+
+    // Recherche du parking existant
+    const parking = await Parking.findById(id);
+    
+    if (!parking) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Parking non trouvé" 
+      });
+    }
+
+    // Mise à jour seulement des champs fournis
+    const updateData = {};
+    
+    if (spots) updateData.spots = spots;
+    if (layout) updateData.layout = layout;
+    if (totalSpots !== undefined) updateData.totalSpots = totalSpots;
+    if (availableSpots !== undefined) updateData.availableSpots = availableSpots;
+
+    // Mise à jour partielle qui ignore les validateurs pour les champs non mis à jour
+    const updatedParking = await Parking.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Plan de parking mis à jour avec succès",
+      data: updatedParking
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du parking:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour du parking",
+      error: error.message
+    });
+  }
+};
+
+const reserveParkingSpot = async (req, res) => {
+  const { parkingId, spotId } = req.params;
+  const userId = req.user._id; // Suppose que l'utilisateur est authentifié
+  
+  try {
+    // Trouver le parking avec la place spécifique
+    const parking = await Parking.findById(parkingId);
+    
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
+    
+    // Trouver l'index de la place dans le tableau des places
+    const spotIndex = parking.spots.findIndex(spot => spot.id === spotId);
+    
+    if (spotIndex === -1) {
+      return res.status(404).json({ message: "Place de parking non trouvée" });
+    }
+    
+    // Vérifier si la place est déjà occupée ou réservée
+    if (parking.spots[spotIndex].status !== 'available') {
+      return res.status(400).json({ 
+        message: "Cette place n'est pas disponible", 
+        status: parking.spots[spotIndex].status 
+      });
+    }
+    
+    // Mettre à jour le statut de la place
+    parking.spots[spotIndex].status = 'reserved';
+    parking.spots[spotIndex].reservedBy = userId;
+    parking.spots[spotIndex].reservationTime = new Date();
+    
+    // Mettre à jour le nombre de places disponibles
+    parking.availableSpots = parking.availableSpots - 1;
+    
+    // Sauvegarder les modifications
+    await parking.save();
+    
+    return res.status(200).json({
+      message: "Place réservée avec succès",
+      spot: parking.spots[spotIndex]
+    });
+    
+  } catch (error) {
+    console.error("Erreur lors de la réservation de la place:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur lors de la réservation", 
+      error: error.message 
+    });
+  }
+};
+const updateParkingSpot = async (req, res) => {
+  const { parkingId, spotId } = req.params;
+  const { status } = req.body;
+  const userId = req.user?._id;
+  
+  try {
+    // Trouver le parking avec la place spécifique
+    const parking = await Parking.findById(parkingId);
+    
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
+    
+    // Trouver l'index de la place dans le tableau des places
+    const spotIndex = parking.spots.findIndex(spot => spot.id === spotId);
+    
+    if (spotIndex === -1) {
+      return res.status(404).json({ message: "Place de parking non trouvée" });
+    }
+    
+    // Vérifier si la place est déjà occupée ou réservée
+    if (status === 'reserved' && parking.spots[spotIndex].status !== 'available') {
+      return res.status(400).json({ 
+        message: "Cette place n'est pas disponible", 
+        status: parking.spots[spotIndex].status 
+      });
+    }
+    
+    // Mettre à jour le statut de la place
+    parking.spots[spotIndex].status = status;
+    if (status === 'reserved') {
+      parking.spots[spotIndex].reservedBy = userId;
+      parking.spots[spotIndex].reservationTime = new Date(); 
+      
+      // Mettre à jour le nombre de places disponibles
+      parking.availableSpots = Math.max(0, parking.availableSpots - 1);
+    } else if (status === 'available' && parking.spots[spotIndex].status !== 'available') {
+      // Si on libère une place, incrémenter le compteur
+      parking.availableSpots += 1;
+    }
+    
+    // Sauvegarder les modifications avec l'option validateBeforeSave désactivée
+    await parking.save({ validateBeforeSave: false });
+    
+    return res.status(200).json({
+      message: `Statut de la place mis à jour: ${status}`,
+      spot: parking.spots[spotIndex]
+    });
+    
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la place:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur lors de la mise à jour", 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createParking,
   getParkings,
@@ -460,5 +601,8 @@ module.exports = {
   approveParkingRequest,
   getParkingsByEmployee,
   updateTotalSpots,
-  getNearbyRecommendedParkings,
+  saveParking3D,
+  reserveParkingSpot,
+  updateParkingSpot,
+  getNearbyRecommendedParkings
 };

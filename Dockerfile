@@ -1,3 +1,4 @@
+
 # Utiliser une image officielle de Node.js
 FROM node:20-alpine AS builder
 
@@ -19,3 +20,4 @@ EXPOSE 3001
 
 # Démarrer le serveur
 CMD ["npm", "start"]
+

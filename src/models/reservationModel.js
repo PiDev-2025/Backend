@@ -6,6 +6,16 @@ const reservationSchema = new mongoose.Schema({
     ref: 'Parking',
     required: true
   },
+  spotId: {
+    type: String,
+    required: [true, 'L\'ID de la place est requis'],
+    validate: {
+      validator: function (v) {
+        return v.startsWith('parking-spot-');
+      },
+      message: 'L\'ID de place doit commencer par parking-spot-'
+    }
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -30,7 +40,7 @@ const reservationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected'],
+    enum: ['pending', 'accepted', 'rejected', 'completed', 'canceled'],
     default: 'pending'
   },
   qrCode: {
@@ -55,7 +65,7 @@ reservationSchema.index({ parkingId: 1 });
 reservationSchema.index({ createdAt: -1 });
 
 // Virtual pour générer un ID lisible
-reservationSchema.virtual('displayId').get(function() {
+reservationSchema.virtual('displayId').get(function () {
   return `RES-${this._id}`;
 });
 

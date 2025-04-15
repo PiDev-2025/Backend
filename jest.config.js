@@ -11,3 +11,4 @@ module.exports = {
   roots: ['<rootDir>/src'],
   globalSetup: './src/tests/setup.js'
 };
+

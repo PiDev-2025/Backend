@@ -1,13 +1,16 @@
+
 const Reservation = require("../models/reservationModel");
 const Parking = require('../models/parkingModel');
+const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
+const { isValidObjectId } = require('mongoose');
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
-  
+
   let totalPrice = 0;
 
   if (days >= 30 && pricing.monthly) {
@@ -47,6 +50,56 @@ const generateQRCode = async (reservationData) => {
   return await QRCode.toDataURL(qrData);
 };
 
+/**
+ * Vérifie le statut réel d'une place de parking en tenant compte des réservations
+ * @param {String} spotId - L'ID de la place de parking
+ * @param {String} currentStatus - Le statut actuel de la place dans la base de données
+ * @returns {Promise<String>} - Le statut réel de la place: 'available', 'occupied', ou 'reserved'
+ */
+const checkRealSpotStatus = async (spotId, currentStatus) => {
+  try {
+    // Obtenir l'heure actuelle
+    const now = new Date();
+    
+    // Chercher la réservation active ou prochaine pour cette place
+    const activeReservation = await Reservation.findOne({
+      spotId: spotId,
+      status: 'accepted',
+      endTime: { $gte: now }, // La réservation n'est pas encore terminée
+      $or: [
+        { startTime: { $lte: now } }, // La réservation a déjà commencé
+        { startTime: { $lte: new Date(now.getTime() + 30 * 60000) } } // La réservation commence dans moins de 30 min
+      ]
+    }).sort({ startTime: 1 }); // Trier par heure de début pour obtenir la plus proche
+    
+    // Si aucune réservation n'est trouvée, la place est disponible
+    if (!activeReservation) {
+      return 'available';
+    }
+    
+    // Calculer la différence en minutes entre maintenant et le début de la réservation
+    const minutesUntilStart = Math.floor((activeReservation.startTime - now) / 60000);
+    
+    // Si la réservation a déjà commencé (entre startTime et endTime)
+    if (now >= activeReservation.startTime && now <= activeReservation.endTime) {
+      return 'reserved';
+    }
+    
+    // Si la réservation commence dans moins de 30 minutes
+    if (minutesUntilStart <= 30) {
+      return 'occupied';
+    }
+    
+    // Dans les autres cas, la place est disponible
+    return 'available';
+    
+  } catch (error) {
+    console.error('Erreur lors de la vérification du statut de la place:', error);
+    // En cas d'erreur, on retourne le statut actuel pour ne pas bloquer le système
+    return currentStatus;
+  }
+};
+
 const createReservation = async (reservationData) => {
   try {
     console.log("Création d'une réservation avec données:", reservationData);
@@ -59,6 +112,7 @@ const createReservation = async (reservationData) => {
 
     const reservation = new Reservation({
       parkingId: reservationData.parkingId,
+      spotId: reservationData.spotId,
       userId: reservationData.userId,
       startTime: reservationData.startTime,
       endTime: reservationData.endTime,
@@ -82,6 +136,16 @@ const createReservation = async (reservationData) => {
 
     reservation.qrCode = await QRCode.toDataURL(qrCodeData);
     await reservation.save();
+    console.log("parking dataaa ", parking);
+
+    // Créer la notification
+    await notificationService.createNotification({
+      driverId: reservationData.userId,
+      ownerId : parking.get('Owner'),
+      parkingId: reservationData.parkingId,
+      reservationId: reservation._id,
+      status: 'en_attente'
+    });
 
     console.log("✅ Réservation créée avec succès:", reservation);
     return reservation;
@@ -91,31 +155,98 @@ const createReservation = async (reservationData) => {
   }
 };
 
-const updateReservationStatus = async (reservationId, status, userId) => {
+// Fonction pour mettre à jour le statut d'une réservation
+async function updateReservationStatus(reservationId, newStatus, userId) {
+  if (!mongoose.Types.ObjectId.isValid(reservationId)) {
+    throw new Error('ID de réservation invalide');
+  }
+
+  // Vérifier que le statut est valide selon votre modèle
+  const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'canceled'];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error('Statut de réservation invalide');
+  }
+
+  const reservation = await Reservation.findOneAndUpdate(
+    { _id: reservationId },
+    { status: newStatus },
+    { new: true, runValidators: true }
+  );
+
+  if (!reservation) {
+    throw new Error('Réservation non trouvée');
+  }
+
+  return reservation;
+}
+
+const checkAvailability = async (req, res) => {
   try {
-    const reservation = await Reservation.findById(reservationId)
-      .populate('parkingId')
-      .populate('userId');
-
-    if (!reservation) throw new Error('Réservation non trouvée');
-
-    // Vérifier si l'utilisateur est le propriétaire ou l'employé du parking
-    const parking = await Parking.findById(reservation.parkingId);
-    if (parking.Owner.toString() !== userId && parking.id_employee?.toString() !== userId) {
-      throw new Error('Non autorisé à modifier cette réservation');
+    const { parkingId, spotId } = req.params;
+    const { startTime, endTime } = req.query;
+    
+    // Validation des paramètres
+    if (!isValidObjectId(parkingId)) {
+      return res.status(400).json({ success: false, message: 'ID de parking invalide' });
     }
-
-    reservation.status = status;
-    if (status === 'accepted') {
-      // Mettre à jour le nombre de places disponibles
-      parking.availableSpots -= 1;
-      await parking.save();
+    
+    if (!spotId || !spotId.startsWith('parking-spot-')) {
+      return res.status(400).json({ success: false, message: 'ID de place invalide' });
     }
-
-    await reservation.save();
-    return reservation;
+    
+    if (!startTime || !endTime) {
+      return res.status(400).json({ success: false, message: 'Les dates de début et de fin sont requises' });
+    }
+    
+    // Conversion et validation des dates
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: 'Dates invalides' });
+    }
+    
+    if (start >= end) {
+      return res.status(400).json({ success: false, message: 'La date de fin doit être après la date de début' });
+    }
+    
+    if (start < new Date()) {
+      return res.status(400).json({ success: false, message: 'La date de début ne peut pas être dans le passé' });
+    }
+    
+    // Recherche des réservations existantes qui se chevauchent avec la période demandée
+    const overlappingReservations = await Reservation.find({
+      parkingId,
+      spotId,
+      status: { $nin: ['rejected', 'canceled'] },
+      $or: [
+        // Début de réservation pendant la période demandée
+        { startTime: { $lt: end, $gte: start } },
+        // Fin de réservation pendant la période demandée
+        { endTime: { $gt: start, $lte: end } },
+        // Réservation englobant complètement la période demandée
+        { startTime: { $lte: start }, endTime: { $gte: end } }
+      ]
+    });
+    
+    const isAvailable = overlappingReservations.length === 0;
+    
+    return res.status(200).json({
+      success: true,
+      isAvailable,
+      message: isAvailable 
+        ? 'La place est disponible pour cette période' 
+        : 'La place n\'est pas disponible pour cette période',
+      overlappingReservations: isAvailable ? [] : overlappingReservations
+    });
+    
   } catch (error) {
-    throw error;
+    console.error('Erreur lors de la vérification de disponibilité:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la vérification de disponibilité',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -189,12 +320,17 @@ const deleteReservation = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
+  checkAvailability,
   createReservation,
   updateReservationStatus,
   calculatePrice,
   getReservations,
   getReservationById,
   updateReservation,
-  deleteReservation
+  deleteReservation,
+  checkRealSpotStatus
+
 };
