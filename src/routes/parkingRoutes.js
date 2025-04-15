@@ -1,3 +1,4 @@
+
 const sendEmail = require("../utils/sendEmail");
 const express = require("express");
 const router = express.Router();
@@ -12,6 +13,7 @@ const axios = require('axios');
 const {getUserFromToken} = require ("../middlewares/uploadMiddleware");
 
 const {checkRealSpotStatus} = require ("../services/reservationService");
+const parkingService = require("../services/parkingService");
 
 const {
   createParking,
@@ -154,6 +156,28 @@ router.put('/requests/:id', upload, async (req, res) => {
 });
 
 router.patch('/:id', saveParking3D);
+router.get("/api/parkings/nearby", async (req, res) => {
+  try {
+    const { lat, lng, limit } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ error: "lat and lng are required" });
+    }
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedLimit = parseInt(limit);
+    const finalLimit = isNaN(parsedLimit) ? 10 : parsedLimit;
+    const nearbyParkings = await parkingService.getNearbyRecommendedParkings(
+      parsedLat,
+      parsedLng,
+      finalLimit
+    );
+    res.json(nearbyParkings);
+  } catch (error) {
+    console.error("Error in /api/parkings/nearby:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.patch('/:parkingId/spots/:spotId', getUserFromToken, updateParkingSpot);
 router.get("/parkings/:id", async (req, res) => {
   try {

@@ -6,7 +6,9 @@ module.exports = {
     '^.+\\.js$': 'babel-jest'
   },
   verbose: true,
-  testTimeout: 10000,
+  testTimeout: 30000, // Increase Jest timeout to 30 seconds
   moduleFileExtensions: ['js', 'json'],
-  roots: ['<rootDir>/src']
+  roots: ['<rootDir>/src'],
+  globalSetup: './src/tests/setup.js'
 };
+

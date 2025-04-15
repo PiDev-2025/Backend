@@ -213,6 +213,10 @@ const loginUser = async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Utilisateur introuvable" });
 
+    if (!password || !user.password) {
+      return res.status(400).json({ message: "Password is missing or invalid" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
       return res.status(400).json({ message: "Mot de passe incorrect" });
@@ -497,3 +501,4 @@ module.exports = {
   addFavorite,
   removeFavorite
 };
+

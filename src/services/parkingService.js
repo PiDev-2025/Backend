@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 const ParkingRequest = require("../models/parkingRequestModel");
 const Parking = require("../models/parkingModel");
@@ -30,6 +31,31 @@ const getParkingsByEmployee = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
+  try {
+    const nearbyParkings = await Parking.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          distanceField: "distance",
+          spherical: true,
+          query: {
+            status: "accepted",
+            availableSpots: { $gt: 0 },
+          },
+        },
+      },
+      { $limit: limit },
+    ]);
+    return nearbyParkings;
+  } catch (error) {
+    console.error("Error fetching nearby parkings:", error);
+    throw error;
   }
 };
 const updateTotalSpots = async (req, res) => {
@@ -577,5 +603,6 @@ module.exports = {
   updateTotalSpots,
   saveParking3D,
   reserveParkingSpot,
-  updateParkingSpot
+  updateParkingSpot,
+  getNearbyRecommendedParkings
 };

@@ -1,6 +1,4 @@
 const mongoose = require("mongoose");
-
-
 const ArrowSchema = new mongoose.Schema({
   id: String,
   x: Number,
@@ -65,7 +63,6 @@ const LayoutSchema = new mongoose.Schema({
     offsetY: { type: Number, default: 0 }
   }
 });
-
 
 const parkingSchema = new mongoose.Schema({
   name: { type: String, required: true },

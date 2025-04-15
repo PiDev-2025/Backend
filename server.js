@@ -73,7 +73,21 @@ const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 
+// Import Monitoring
+const { register, metricsMiddleware } = require('./src/monitoring');
 
+// Ajoutez le middleware de métriques
+app.use(metricsMiddleware);
+
+// Endpoint pour les métriques Prometheus
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (err) {
+        res.status(500).end(err);
+    }
+});
 
 // Define Routes
 app.use("/auth", authRoutes);
@@ -86,8 +100,8 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
+app.use('/api/reservations', reservationRoutes);
 app.use("/api/notifications", notificationRoutes);
-
 // Test Route
 app.get("/", (req, res) => {
   res.send("MongoDB is connected to Express!");

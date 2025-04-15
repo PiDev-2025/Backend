@@ -1,3 +1,4 @@
+
 const Reservation = require("../models/reservationModel");
 const Parking = require('../models/parkingModel');
 const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
@@ -289,21 +290,32 @@ const updateReservation = async (req, res) => {
 
 const deleteReservation = async (req, res) => {
   try {
+    console.log("🔍 Attempting to delete reservation with ID:", req.params.id);
+
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) {
+      console.warn("⚠️ Réservation non trouvée:", req.params.id);
       return res.status(404).json({ message: 'Réservation non trouvée' });
     }
 
     // Restaurer la place de parking
     const parking = await Parking.findById(reservation.parkingId);
-    if (parking && reservation.status === 'accepted') {
-      parking.availableSpots += 1;
-      await parking.save();
+    if (parking) {
+      console.log("🔄 Found parking for reservation:", parking._id);
+      if (reservation.status === 'accepted') {
+        parking.availableSpots += 1;
+        await parking.save();
+        console.log("✅ Parking spots restored. Available spots:", parking.availableSpots);
+      }
+    } else {
+      console.warn("⚠️ Parking non trouvé pour la réservation:", reservation.parkingId);
     }
 
-    await reservation.remove();
+    await Reservation.findByIdAndDelete(reservation._id); // Use findByIdAndDelete instead of remove
+    console.log("✅ Réservation supprimée avec succès:", reservation._id);
     res.status(200).json({ message: 'Réservation supprimée' });
   } catch (error) {
+    console.error("❌ Erreur suppression réservation:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -320,4 +332,5 @@ module.exports = {
   updateReservation,
   deleteReservation,
   checkRealSpotStatus
+
 };

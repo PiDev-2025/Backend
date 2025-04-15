@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-
 const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
     service: 'Gmail',
@@ -8,14 +7,12 @@ const sendEmail = async (options) => {
       pass: 'vhgt kjkc gkbi rbkr', 
     },
   }); 
-
   const mailOptions = {
     from: 'Marwaniwael88@gmail.com',
     to: options.email,
     subject: options.subject,
     text: options.message,
   };
-
   try {
     await transporter.sendMail(mailOptions);
     console.log('Email sent successfully');
@@ -24,5 +21,4 @@ const sendEmail = async (options) => {
     throw new Error('Error sending email');
   }
 };
-
 module.exports = sendEmail;
