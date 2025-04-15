@@ -11,6 +11,7 @@ const { getParkingRequestEmailTemplate } = require("../utils/emailTemplates");
 const axios = require('axios');
 const {getUserFromToken} = require ("../middlewares/uploadMiddleware");
 
+const {checkRealSpotStatus} = require ("../services/reservationService");
 
 const {
   createParking,
@@ -527,7 +528,34 @@ router.post("/parkings/availableSpots", async (req, res) => {
 
 router.put("/parkings/:id", verifyToken, verifyRole("Owner", "Admin"), updateParking);
 router.delete("/parkings/:id", verifyToken, verifyRole("Admin", "Owner"), deleteParking);
-router.get("/parkings-by-employee/:employeeId", getParkingsByEmployee); // 🔹 Nouvelle route
+router.get("/parkings-by-employee/:employeeId", getParkingsByEmployee); 
 router.patch("/update-total-spots/:id", updateTotalSpots);
+
+
+// Exemple d'utilisation dans une route qui récupère un parking avec ses places
+router.get('/verifParkingStatus/:id', async (req, res) => {
+  try {
+    const parking = await Parking.findById(req.params.id);
+    
+    if (!parking) {
+      return res.status(404).json({ message: 'Parking non trouvé' });
+    }
+    
+    // Mettre à jour le statut de chaque place en fonction des réservations
+    for (let i = 0; i < parking.spots.length; i++) {
+      const realStatus = await checkRealSpotStatus(parking.spots[i].id, parking.spots[i].status);
+      parking.spots[i].status = realStatus;
+    }
+    
+    // Recalculer le nombre de places disponibles
+    const availableSpots = parking.spots.filter(spot => spot.status === 'available').length;
+    parking.availableSpots = availableSpots;
+    
+    res.json(parking);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du parking:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
 
 module.exports = router;

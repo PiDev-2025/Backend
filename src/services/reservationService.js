@@ -49,6 +49,56 @@ const generateQRCode = async (reservationData) => {
   return await QRCode.toDataURL(qrData);
 };
 
+/**
+ * Vérifie le statut réel d'une place de parking en tenant compte des réservations
+ * @param {String} spotId - L'ID de la place de parking
+ * @param {String} currentStatus - Le statut actuel de la place dans la base de données
+ * @returns {Promise<String>} - Le statut réel de la place: 'available', 'occupied', ou 'reserved'
+ */
+const checkRealSpotStatus = async (spotId, currentStatus) => {
+  try {
+    // Obtenir l'heure actuelle
+    const now = new Date();
+    
+    // Chercher la réservation active ou prochaine pour cette place
+    const activeReservation = await Reservation.findOne({
+      spotId: spotId,
+      status: 'accepted',
+      endTime: { $gte: now }, // La réservation n'est pas encore terminée
+      $or: [
+        { startTime: { $lte: now } }, // La réservation a déjà commencé
+        { startTime: { $lte: new Date(now.getTime() + 30 * 60000) } } // La réservation commence dans moins de 30 min
+      ]
+    }).sort({ startTime: 1 }); // Trier par heure de début pour obtenir la plus proche
+    
+    // Si aucune réservation n'est trouvée, la place est disponible
+    if (!activeReservation) {
+      return 'available';
+    }
+    
+    // Calculer la différence en minutes entre maintenant et le début de la réservation
+    const minutesUntilStart = Math.floor((activeReservation.startTime - now) / 60000);
+    
+    // Si la réservation a déjà commencé (entre startTime et endTime)
+    if (now >= activeReservation.startTime && now <= activeReservation.endTime) {
+      return 'reserved';
+    }
+    
+    // Si la réservation commence dans moins de 30 minutes
+    if (minutesUntilStart <= 30) {
+      return 'occupied';
+    }
+    
+    // Dans les autres cas, la place est disponible
+    return 'available';
+    
+  } catch (error) {
+    console.error('Erreur lors de la vérification du statut de la place:', error);
+    // En cas d'erreur, on retourne le statut actuel pour ne pas bloquer le système
+    return currentStatus;
+  }
+};
+
 const createReservation = async (reservationData) => {
   try {
     console.log("Création d'une réservation avec données:", reservationData);
@@ -90,7 +140,7 @@ const createReservation = async (reservationData) => {
     // Créer la notification
     await notificationService.createNotification({
       driverId: reservationData.userId,
-      ownerId : parking.get('id_owner'),
+      ownerId : parking.get('Owner'),
       parkingId: reservationData.parkingId,
       reservationId: reservation._id,
       status: 'en_attente'
@@ -268,5 +318,6 @@ module.exports = {
   getReservations,
   getReservationById,
   updateReservation,
-  deleteReservation
+  deleteReservation,
+  checkRealSpotStatus
 };

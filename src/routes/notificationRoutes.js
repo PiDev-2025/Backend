@@ -12,7 +12,7 @@ router.get('/all', getUserFromToken, notificationController.getUserNotifications
 //router.get('/unread-count', getUserFromToken, notificationController.countUnread);
 
 // Route pour créer une nouvelle notification
-router.post('/', getUserFromToken, notificationController.createNotification);
+router.post('/', getUserFromToken, notificationController.createNotification); 
 
 // Route pour marquer une notification comme lue
 router.patch('/:id/read', getUserFromToken, notificationController.markNotificationAsRead);

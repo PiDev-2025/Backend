@@ -75,7 +75,7 @@ router.get('/list-all', verifyToken, async (req, res) => {
 });
 
 // Mes réservations (pour l'utilisateur connecté)
-router.get('/reservationsv /my-reservations', verifyToken, async (req, res) => {
+router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
   try {
     console.log("🔍 Recherche des réservations pour l'utilisateur:", req.user.id);
 
