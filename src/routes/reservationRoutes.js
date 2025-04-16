@@ -4,7 +4,7 @@ const router = express.Router();
 const { verifyToken } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
 const Reservation = require('../models/reservationModel');
-const { createReservation, updateReservationStatus, checkAvailability,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation } = require('../services/reservationService');
+const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation } = require('../services/reservationService');
 
 // Création de réservation
 router.post('/reservations', verifyToken, async (req, res) => {
@@ -249,7 +249,7 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
-
+router.get("/reservations/:id/user", getUserByReservation);
 //  router.get("/reservations", getReservations);
 // router.get("/reservations/:id", getReservationById);
 // router.put("/reservations/:id", updateReservation);
