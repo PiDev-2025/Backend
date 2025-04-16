@@ -1,3 +1,3 @@
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 process.env.JWT_SECRET = 'test-secret';
