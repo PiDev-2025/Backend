@@ -53,7 +53,7 @@ router.post('/reservations', verifyToken, async (req, res) => {
 });
 
 // Liste de toutes les réservations
-router.get('/list-all', verifyToken, async (req, res) => {
+router.get('/list-all',  async (req, res) => {
   try {
     const reservations = await Reservation.find()
       .populate({
