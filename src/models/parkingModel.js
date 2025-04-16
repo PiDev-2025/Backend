@@ -113,5 +113,5 @@ const parkingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 parkingSchema.index({ name: 1, position: 1, Owner: 1 });
-
+parkingSchema.index({ position: "2dsphere" });
 module.exports = mongoose.model("Parking", parkingSchema);
