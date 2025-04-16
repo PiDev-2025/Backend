@@ -260,6 +260,22 @@ const getReservations = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const getUserByReservation = async (req, res) => {
+  try {
+    const reservation = await Reservation.findById(req.params.id).populate('userId');
+
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    res.status(200).json({
+      reservationId: reservation._id,
+      user: reservation.userId, // this contains the populated user document
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 const getReservationById = async (req, res) => {
   try {
@@ -331,6 +347,7 @@ module.exports = {
   getReservationById,
   updateReservation,
   deleteReservation,
-  checkRealSpotStatus
+  checkRealSpotStatus,
+  getUserByReservation
 
 };

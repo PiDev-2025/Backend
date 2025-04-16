@@ -100,7 +100,6 @@ app.use("/api", reservationRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
-app.use('/api/reservations', reservationRoutes);
 app.use("/api/notifications", notificationRoutes);
 // Test Route
 app.get("/", (req, res) => {
