@@ -1,4 +1,3 @@
-
 const sendEmail = require("../utils/sendEmail");
 const express = require("express");
 const router = express.Router();
@@ -29,6 +28,48 @@ const {
 
 router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
+
+/**
+ * Get weather information for a parking
+ * @param {Object} parking - Parking object with position data
+ * @returns {Promise<Object>} Weather data or null if error occurs
+ */
+async function getWeatherForParking(parking) {
+  try {
+    const weatherApiKey = "78af154a62027de4c1c77739d5ea593a";
+    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${parking.position.lat}&lon=${parking.position.lng}&appid=${weatherApiKey}&units=metric&lang=fr`;
+    const weatherResponse = await axios.get(weatherUrl);
+    
+    return {
+      temperature: Math.round(weatherResponse.data.main.temp),
+      description: weatherResponse.data.weather[0].description,
+      icon: `https://openweathermap.org/img/wn/${weatherResponse.data.weather[0].icon}@4x.png`,
+      humidity: weatherResponse.data.main.humidity,
+      windSpeed: weatherResponse.data.wind.speed
+    };
+  } catch (error) {
+    console.error("Erreur météo pour parking:", parking._id, error);
+    return null;
+  }
+}
+
+/**
+ * Add weather information to a parking object
+ * @param {Object} parking - Parking object
+ * @returns {Promise<Object>} Parking object with weather data
+ */
+async function addWeatherToParking(parking) {
+  const weatherData = await getWeatherForParking(parking);
+  
+  if (weatherData) {
+    return {
+      ...parking.toObject(),
+      weather: weatherData
+    };
+  }
+  
+  return parking;
+}
 
 /**
  * ✅ Met à jour une demande de parking et la supprime après modification du statut
@@ -195,12 +236,15 @@ router.get("/parkings/:id", async (req, res) => {
       return res.status(404).json({ message: "Parking non trouvé" });
     }
     
+    // Add weather information using the helper function
+    const parkingWithWeather = await addWeatherToParking(parking);
+    
     console.log(`🚗 Parking ${parkingId} récupéré avec succès`);
-    res.status(200).json(parking);
+    res.status(200).json(parkingWithWeather);
   } catch (error) {
-    console.error(`❌ Erreur lors de la récupération du parking ${req.params.id}:`, error);
+    console.error(`❌ Error:`, error);
     res.status(500).json({ 
-      message: "Erreur serveur lors de la récupération du parking", 
+      message: "Server error",
       error: error.message 
     });
   }
@@ -319,28 +363,7 @@ router.get("/parkings", async (req, res) => {
     
     // Ajouter les données météo pour chaque parking
     const parkingsWithWeather = await Promise.all(
-      parkings.map(async (parking) => {
-        try {
-          const weatherApiKey = "78af154a62027de4c1c77739d5ea593a";
-          const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${parking.position.lat}&lon=${parking.position.lng}&appid=${weatherApiKey}&units=metric&lang=fr`;
-          const weatherResponse = await axios.get(weatherUrl);
-          
-          return {
-            ...parking.toObject(),
-            weather: {
-              temperature: Math.round(weatherResponse.data.main.temp),
-              description: weatherResponse.data.weather[0].description,
-              // Modification de l'URL de l'icône pour utiliser HTTPS
-              icon: `https://openweathermap.org/img/wn/${weatherResponse.data.weather[0].icon}@4x.png`,
-              humidity: weatherResponse.data.main.humidity,
-              windSpeed: weatherResponse.data.wind.speed
-            }
-          };
-        } catch (weatherError) {
-          console.error("Erreur météo pour parking:", parking._id, weatherError);
-          return parking;
-        }
-      })
+      parkings.map(parking => addWeatherToParking(parking))
     );
 
     res.status(200).json(parkingsWithWeather);
@@ -360,32 +383,22 @@ router.get("/parkings/:id", async (req, res) => {
   try {
     const parkingId = req.params.id;
     
+    // Vérifie si l'ID est au format valide pour MongoDB
+    if (!parkingId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "ID de parking invalide" });
+    }
+    
     const parking = await Parking.findById(parkingId)
       .populate("Owner", "name email");
       
     if (!parking) {
       return res.status(404).json({ message: "Parking non trouvé" });
     }
-
-    // Add weather information
-    const weatherApiKey = "78af154a62027de4c1c77739d5ea593a";
-    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${parking.position.lat}&lon=${parking.position.lng}&appid=${weatherApiKey}&units=metric&lang=fr`;
     
-    const weatherResponse = await axios.get(weatherUrl);
-    const weatherData = {
-      temperature: Math.round(weatherResponse.data.main.temp),
-      feelsLike: Math.round(weatherResponse.data.main.feels_like),
-      humidity: weatherResponse.data.main.humidity,
-      description: weatherResponse.data.weather[0].description,
-      icon: `http://openweathermap.org/img/w/${weatherResponse.data.weather[0].icon}@4x.png`,
-      windSpeed: weatherResponse.data.wind.speed
-    };
-
-    const parkingWithWeather = {
-      ...parking.toObject(),
-      weather: weatherData
-    };
+    // Add weather information using the helper function
+    const parkingWithWeather = await addWeatherToParking(parking);
     
+    console.log(`🚗 Parking ${parkingId} récupéré avec succès`);
     res.status(200).json(parkingWithWeather);
   } catch (error) {
     console.error(`❌ Error:`, error);

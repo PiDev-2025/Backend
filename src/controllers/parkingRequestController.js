@@ -1,60 +1,6 @@
 const ParkingRequest = require("../models/parkingModel");
 const cloudinary = require("cloudinary").v2;
 
-// Mise à jour d'une demande de parking
-/*const updateParkingRequest = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Vérifier si la demande de parking existe
-    const parking = await ParkingRequest.findById(id);
-    if (!parking) {
-      return res.status(404).json({ message: "Parking request not found" });
-    }
-
-    // Extraire les nouvelles données du corps de la requête
-    const { name, description, position, totalSpots, vehicleType, features, pricing } = req.body;
-
-    // Mettre à jour les champs fournis
-    if (name) parking.name = name;
-    if (description) parking.description = description;
-    if (position) parking.positionposition = position;
-    if (totalSpots) parking.totalSpots = totalSpots;
-    if (vehicleType) parking.vehicleType = vehicleType;
-    if (features) parking.features = features;
-    if (pricing) parking.pricing = pricing;
-
-    // Vérifier si des images ont été téléchargées via Cloudinary
-    if (req.files && req.files.length > 0) {
-      // Supprimer les anciennes images de Cloudinary (optionnel)
-      if (parking.images.length > 0) {
-        await Promise.all(
-          parking.images.map(async (imageUrl) => {
-            const publicId = imageUrl.split("/").pop().split(".")[0]; // Extraire l'ID public
-            await cloudinary.uploader.destroy(`parking_images/${publicId}`);
-          })
-        );
-      }
-
-      // Ajouter les nouvelles images uploadées
-      const uploadedImages = req.files.map((file) => file.path); // URLs Cloudinary
-      parking.images = uploadedImages;
-    }
-
-    // Sauvegarder les modifications
-    await parking.save();
-
-    return res.status(200).json({ message: "Parking request updated", parking });
-  } catch (error) {
-    console.error("❌ Error updating parking request:", error.message, error.stack);
-    return res.status(500).json({ 
-      message: "Internal server error",
-      error: error.message
-    });
-  }
-  
-};*/
-
 const updateParkingRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -163,12 +109,12 @@ const saveRequestParking = async (req, res) => {
         const parsedPricing = pricing ? JSON.parse(pricing) : null;
 
         // ✅ Vérifier et convertir vehicleType en tableau si nécessaire
-        let parsedVehicleType = Array.isArray(vehicleType) ? vehicleType : JSON.parse(vehicleType); // Convertir en tableau si c'est une chaîne JSON
+        let parsedVehicleType = Array.isArray(vehicleType) ? vehicleType : JSON.parse(vehicleType);
 
         const newParking = new ParkingRequest({
             name,
             description,
-            position: parsedLocation,  // ✅ Maintenant location est un objet
+            position: parsedLocation,
             totalSpots: parseInt(totalSpots),
             vehicleType: parsedVehicleType,  
             features: parsedFeatures || [],

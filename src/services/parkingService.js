@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const ParkingRequest = require("../models/parkingRequestModel");
 const Parking = require("../models/parkingModel");
@@ -14,7 +13,7 @@ const getParkingsByEmployee = async (req, res) => {
       return res.status(400).json({ message: "ID d'employé invalide." });
     }
 
-    // Use Owner instead of id_owner to match schema
+    // Find parkings with matching employee ID and correctly populate Owner field
     const parkings = await Parking.find({
       id_employee: employeeId,
     }).populate("Owner", "name email");
@@ -33,6 +32,7 @@ const getParkingsByEmployee = async (req, res) => {
       .json({ message: "Erreur serveur", error: error.message });
   }
 };
+
 const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
   try {
     const nearbyParkings = await Parking.aggregate([
@@ -58,6 +58,7 @@ const getNearbyRecommendedParkings = async (lat, lng, limit = 10) => {
     throw error;
   }
 };
+
 const updateTotalSpots = async (req, res) => {
   try {
     const { id } = req.params;
@@ -102,11 +103,12 @@ const updateTotalSpots = async (req, res) => {
   }
 };
 
+// Refactored to reduce cognitive complexity
 const createParking = async (req, res) => {
   try {
     // Log the user role
     console.log("Utilisateur connecté:", req.user);
-    if (!req.user || !["Admin", "Owner"].includes(req.user.role)) {
+    if (!isAuthorizedRole(req.user)) {
       return res
         .status(403)
         .json({ message: "Accès refusé, rôle non autorisé" });
@@ -123,53 +125,24 @@ const createParking = async (req, res) => {
       features,
     } = req.body;
 
-    // Vérification des champs requis
-    if (
-      !name ||
-      !position ||
-      !totalSpots ||
-      !availableSpots ||
-      !pricing ||
-      !vehicleTypes
-    ) {
+    // Validate required fields
+    if (!areRequiredFieldsPresent(name, position, totalSpots, availableSpots, pricing, vehicleTypes)) {
       return res
         .status(400)
         .json({ message: "Tous les champs obligatoires sont requis" });
     }
 
-    // Vérification des types des champs
-    if (typeof totalSpots !== "number" || typeof availableSpots !== "number") {
-      return res.status(400).json({
-        message:
-          "Les champs 'totalSpots' et 'availableSpots' doivent être des nombres",
-      });
-    }
-
-    if (typeof pricing !== "object" || typeof pricing.hourly !== "number") {
-      return res.status(400).json({
-        message:
-          "Les informations de tarification horaire doivent être des nombres",
-      });
-    }
-
-    // Vérification des types de véhicules
-    if (!Array.isArray(vehicleTypes) || vehicleTypes.length === 0) {
+    // Validate field types
+    if (!areFieldTypesValid(totalSpots, availableSpots, pricing, vehicleTypes, features)) {
       return res
         .status(400)
-        .json({ message: "Les types de véhicules sont requis" });
+        .json({ message: "Types de champs invalides" });
     }
 
-    // Vérification des fonctionnalités si présentes
-    if (features && !Array.isArray(features)) {
-      return res
-        .status(400)
-        .json({ message: "Les fonctionnalités doivent être un tableau" });
-    }
-
-    // Création de la demande de parking (action 'create')
+    // Create parking request
     const parkingRequest = new ParkingRequest({
-      action: "create", // L'action 'create' pour cette demande
-      status: "pending", // Le statut initial est 'pending'
+      action: "create",
+      status: "pending",
       Owner: req.user._id,
       name,
       description,
@@ -182,41 +155,80 @@ const createParking = async (req, res) => {
       images: req.files ? req.files.map((file) => file.path) : [],
     });
 
-    // Sauvegarder la demande de parking
     await parkingRequest.save();
 
-    // Si c'est un Admin, on peut directement créer le parking
+    // If admin, create parking directly
     if (req.user.role === "Admin") {
-      const parking = new Parking({
-        name,
-        description,
-        position,
-        totalSpots,
-        availableSpots,
-        pricing,
-        vehicleTypes,
-        features: features || [],
-        images: req.files ? req.files.map((file) => file.path) : [],
-        Owner: req.user._id,
-      });
-
-      await parking.save();
-      return res.status(201).json(parking);
+      return await createParkingAsAdmin(res, req.user._id, name, description, position, 
+        totalSpots, availableSpots, pricing, vehicleTypes, features, req.files);
     }
 
-    // Si c'est un Owner, on attend la validation de l'admin
+    // Response for owner
     return res.status(201).json({
       message: "Demande de parking soumise avec succès",
       parkingRequest,
     });
   } catch (error) {
-    console.error(error); // Log the error for debugging
+    console.error(error);
     res.status(500).json({
       message: "Erreur serveur lors de la création du parking",
       error: error.message,
     });
   }
 };
+
+// Helper functions to reduce cognitive complexity
+function isAuthorizedRole(user) {
+  return user && ["Admin", "Owner"].includes(user.role);
+}
+
+function areRequiredFieldsPresent(name, position, totalSpots, availableSpots, pricing, vehicleTypes) {
+  return name && position && totalSpots !== undefined && 
+         availableSpots !== undefined && pricing && vehicleTypes;
+}
+
+function areFieldTypesValid(totalSpots, availableSpots, pricing, vehicleTypes, features) {
+  // Check numeric fields
+  if (typeof totalSpots !== "number" || typeof availableSpots !== "number") {
+    return false;
+  }
+
+  // Check pricing object
+  if (typeof pricing !== "object" || typeof pricing.hourly !== "number") {
+    return false;
+  }
+
+  // Check vehicleTypes array
+  if (!Array.isArray(vehicleTypes) || vehicleTypes.length === 0) {
+    return false;
+  }
+
+  // Check features if present
+  if (features && !Array.isArray(features)) {
+    return false;
+  }
+
+  return true;
+}
+
+async function createParkingAsAdmin(res, ownerId, name, description, position, 
+  totalSpots, availableSpots, pricing, vehicleTypes, features, files) {
+  const parking = new Parking({
+    name,
+    description,
+    position,
+    totalSpots,
+    availableSpots,
+    pricing,
+    vehicleTypes,
+    features: features || [],
+    images: files ? files.map((file) => file.path) : [],
+    Owner: ownerId,
+  });
+
+  await parking.save();
+  return res.status(201).json(parking);
+}
 
 // Récupérer tous les parkings
 const getParkings = async (req, res) => {
@@ -247,107 +259,42 @@ const getParkingById = async (req, res) => {
   }
 };
 
+// Refactored to reduce cognitive complexity
 const updateParking = async (req, res) => {
   try {
     const parkingId = req.params.id;
     console.log("📌 Requête reçue pour mise à jour du parking:", parkingId);
 
-    const {
-      name,
-      description,
-      position,
-      totalSpots,
-      availableSpots,
-      pricing,
-      vehicleTypes,
-      features
-    } = req.body;
-
-    // Vérifier si le parking existe
-    const parking = await Parking.findById(parkingId);
-    if (!parking) {
-      console.log("❌ Parking non trouvé");
-      return res.status(404).json({ message: "Parking non trouvé" });
+    // Validate parking existence and permissions
+    const validationResult = await validateParkingAndPermissions(req, parkingId);
+    if (validationResult.error) {
+      return res.status(validationResult.status).json({ message: validationResult.message });
     }
 
-    // Vérification des permissions
-    if (req.user.role !== "Admin" && parking.Owner.toString() !== req.user.id) {
-      console.log("⛔ Accès refusé - L'utilisateur ne peut pas modifier ce parking");
-      return res.status(403).json({ message: "Accès refusé" });
-    }
+    const parking = validationResult.parking;
+    const { name, description, position, totalSpots, availableSpots, pricing, vehicleTypes, features } = req.body;
 
-    // Vérifier que tous les champs obligatoires sont fournis
-    if (!name || !position || !totalSpots || !availableSpots || !pricing || !vehicleTypes) {
-      console.log("⚠️ Champs obligatoires manquants");
+    // Validate required fields
+    if (!areRequiredFieldsPresent(name, position, totalSpots, availableSpots, pricing, vehicleTypes)) {
       return res.status(400).json({ message: "Champs obligatoires manquants" });
     }
 
-    // 📌 Gestion des images
-    let images = parking.images || [];
-    if (req.files && req.files.length > 0) {
-      images = req.files.map((file) => file.path);
-      console.log("📷 Nouvelles images téléchargées:", images);
-    }
+    // Handle images
+    const images = handleImages(parking, req.files);
 
-    // Création d'une demande de mise à jour
-    const parkingRequest = new ParkingRequest({
-      action: "update",
-      status: "pending",
-      parkingId,
-      name,
-      description,
-      position,
-      totalSpots,
-      availableSpots,
-      pricing,
-      vehicleTypes,
-      features: features || [],
-      images,
-      Owner: req.user._id
-    });
+    // Create update request
+    const parkingRequest = await createUpdateRequest(
+      parkingId, name, description, position, totalSpots, availableSpots, 
+      pricing, vehicleTypes, features, images, req.user._id
+    );
 
-    await parkingRequest.save();
-    console.log("✅ Demande de mise à jour sauvegardée:", parkingRequest);
-
-    // 📌 Traitement pour les Admins (mise à jour immédiate si la demande est acceptée)
+    // Handle admin updates
     if (req.user.role === "Admin") {
-      if (parkingRequest.status === "accepted") {
-        console.log("🔄 Mise à jour immédiate du parking car l'Admin a accepté");
-        
-        const updatedParking = await Parking.findByIdAndUpdate(
-          parkingId,
-          {
-            name,
-            description,
-            position,
-            totalSpots,
-            availableSpots,
-            pricing,
-            vehicleTypes,
-            features: features || [],
-            images
-          },
-          { new: true, runValidators: true }
-        );
-
-        if (!updatedParking) {
-          console.log("❌ Parking introuvable après mise à jour");
-          return res.status(404).json({ message: "Parking introuvable après mise à jour" });
-        }
-
-        console.log("✅ Parking mis à jour avec succès:", updatedParking);
-        return res.status(200).json({ message: "Parking mis à jour avec succès", updatedParking });
-      }
-
-      console.log("⏳ Demande en attente d'approbation Admin");
-      return res.status(200).json({
-        message: "Demande de mise à jour en attente d'approbation",
-        parkingRequest
-      });
+      return await handleAdminUpdate(res, parkingRequest, parkingId, name, description, position,
+        totalSpots, availableSpots, pricing, vehicleTypes, features, images);
     }
 
-    // ✅ Réponse finale pour les autres utilisateurs
-    console.log("📝 Demande de mise à jour soumise avec succès");
+    // Response for non-admin users
     return res.status(200).json({
       message: "Demande de mise à jour soumise avec succès",
       parkingRequest
@@ -362,22 +309,99 @@ const updateParking = async (req, res) => {
   }
 };
 
+// Helper functions for updateParking
+async function validateParkingAndPermissions(req, parkingId) {
+  const parking = await Parking.findById(parkingId);
+  if (!parking) {
+    return { error: true, status: 404, message: "Parking non trouvé" };
+  }
+
+  if (req.user.role !== "Admin" && parking.Owner.toString() !== req.user.id) {
+    return { error: true, status: 403, message: "Accès refusé" };
+  }
+
+  return { error: false, parking };
+}
+
+function handleImages(parking, files) {
+  let images = parking.images || [];
+  if (files && files.length > 0) {
+    images = files.map((file) => file.path);
+  }
+  return images;
+}
+
+async function createUpdateRequest(parkingId, name, description, position, totalSpots, availableSpots,
+  pricing, vehicleTypes, features, images, ownerId) {
+  
+  const parkingRequest = new ParkingRequest({
+    action: "update",
+    status: "pending",
+    parkingId,
+    name,
+    description,
+    position,
+    totalSpots,
+    availableSpots,
+    pricing,
+    vehicleTypes,
+    features: features || [],
+    images,
+    Owner: ownerId
+  });
+
+  await parkingRequest.save();
+  return parkingRequest;
+}
+
+async function handleAdminUpdate(res, parkingRequest, parkingId, name, description, position,
+  totalSpots, availableSpots, pricing, vehicleTypes, features, images) {
+  
+  if (parkingRequest.status === "accepted") {
+    const updatedParking = await Parking.findByIdAndUpdate(
+      parkingId,
+      {
+        name,
+        description,
+        position,
+        totalSpots,
+        availableSpots,
+        pricing,
+        vehicleTypes,
+        features: features || [],
+        images
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedParking) {
+      return res.status(404).json({ message: "Parking introuvable après mise à jour" });
+    }
+
+    return res.status(200).json({ message: "Parking mis à jour avec succès", updatedParking });
+  }
+
+  return res.status(200).json({
+    message: "Demande de mise à jour en attente d'approbation",
+    parkingRequest
+  });
+}
 
 const deleteParking = async (req, res) => {
   try {
-      const { id } = req.params; // Récupérer l'ID depuis les paramètres de l'URL
+    const { id } = req.params;
 
-      const parking = await Parking.findById(id);
-      if (!parking) {
-          return res.status(404).json({ message: "Parking non trouvé" });
-      }
+    const parking = await Parking.findById(id);
+    if (!parking) {
+      return res.status(404).json({ message: "Parking non trouvé" });
+    }
 
-      await Parking.findByIdAndDelete(id);
+    await Parking.findByIdAndDelete(id);
 
-      res.status(200).json({ message: "Parking supprimé avec succès" });
+    res.status(200).json({ message: "Parking supprimé avec succès" });
   } catch (error) {
-      console.error("❌ Erreur lors de la suppression :", error);
-      res.status(500).json({ message: "Erreur interne du serveur" });
+    console.error("❌ Erreur lors de la suppression :", error);
+    res.status(500).json({ message: "Erreur interne du serveur" });
   }
 };
 
@@ -426,8 +450,8 @@ const approveParkingRequest = async (req, res) => {
       await Parking.findByIdAndDelete(parkingRequest.parkingId);
     }
 
-    // ✅ Supprimer la requête une fois traitée
-    await ParkingRequest.findByIdAndDelete(parkingRequest._id);
+    // Supprimer la requête une fois traitée
+    await ParkingRequest.findByIdAndDelete(requestId);
 
     return res
       .status(200)
@@ -534,6 +558,7 @@ const reserveParkingSpot = async (req, res) => {
     });
   }
 };
+
 const updateParkingSpot = async (req, res) => {
   const { parkingId, spotId } = req.params;
   const { status } = req.body;

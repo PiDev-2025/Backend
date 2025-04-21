@@ -41,7 +41,7 @@ describe('Parking Service - Simple Operations', () => {
 
     it('should return all parkings when they exist', async () => {
       // Create test parking
-      const parking = await Parking.create({
+      await Parking.create({
         name: 'Test Parking',
         description: 'Test Description',
         position: { lat: 36.8065, lng: 10.1815 },
@@ -413,7 +413,7 @@ describe('Parking Service - Additional Operations', () => {
 
     it('should return parkings assigned to employee', async () => {
       const employeeId = new mongoose.Types.ObjectId();
-      const parking = await Parking.create({
+      await Parking.create({
         name: 'Employee Parking',
         description: 'Test Description',
         position: { lat: 36.8065, lng: 10.1815 },
