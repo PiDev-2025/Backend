@@ -30,26 +30,7 @@ const getUserFromToken = async (req, res, next) => {
 };
 
 
-/*const getUserFromToken = async (req, res, next) => {
-  try {
-    const token = req.header("Authorization").replace("Bearer ", "");
-    if (!token) {
-      return res.status(401).json({ message: "Authentication failed. Token missing." });
-    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    req.user = user; // Attach user to request object
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Authentication failed.", error: error.message });
-  }
-};*/
 
 // Cloudinary configuration
 cloudinary.config({

@@ -1,4 +1,3 @@
-
 const Reservation = require("../models/reservationModel");
 const Parking = require('../models/parkingModel');
 const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
@@ -8,7 +7,7 @@ const { isValidObjectId } = require('mongoose');
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
-  const days = Math.floor(hours / 24);
+  let days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
 
   let totalPrice = 0;
@@ -141,7 +140,7 @@ const createReservation = async (reservationData) => {
     // Créer la notification
     await notificationService.createNotification({
       driverId: reservationData.userId,
-      ownerId : parking.get('Owner'),
+      ownerId: parking.get('Owner'),
       parkingId: reservationData.parkingId,
       reservationId: reservation._id,
       status: 'en_attente'
@@ -260,6 +259,7 @@ const getReservations = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 const getUserByReservation = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id).populate('userId');
@@ -336,7 +336,32 @@ const deleteReservation = async (req, res) => {
   }
 };
 
+// Fonction pour récupérer les réservations des parkings d'un propriétaire
+const getOwnerReservations = async (ownerId) => {
+  try {
+    // Trouver tous les parkings appartenant à ce propriétaire
+    const ownerParkings = await Parking.find({ Owner: ownerId });
+    
+    if (!ownerParkings || ownerParkings.length === 0) {
+      return [];
+    }
+    
+    const parkingIds = ownerParkings.map(parking => parking._id);
+    
+    // Trouver toutes les réservations pour ces parkings
+    const reservations = await Reservation.find({ 
+      parkingId: { $in: parkingIds }
+    })
+      .populate('parkingId')
+      .populate('userId', 'name email phone') // Inclure seulement les infos nécessaires de l'utilisateur
+      .sort({ createdAt: -1 });
 
+    return reservations;
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération des réservations du propriétaire:", error);
+    throw error;
+  }
+};
 
 module.exports = {
   checkAvailability,
@@ -348,6 +373,6 @@ module.exports = {
   updateReservation,
   deleteReservation,
   checkRealSpotStatus,
-  getUserByReservation
-
+  getUserByReservation,
+  getOwnerReservations
 };

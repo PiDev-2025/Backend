@@ -1,10 +1,11 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
-const { verifyToken } = require('../middlewares/authMiddleware');
+const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
 const Reservation = require('../models/reservationModel');
-const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation } = require('../services/reservationService');
+const User = require('../models/userModel');
+const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation, getOwnerReservations } = require('../services/reservationService');
 
 // Création de réservation
 router.post('/reservations', verifyToken, async (req, res) => {
@@ -133,6 +134,109 @@ router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
   }
 });
 
+// Nouvelles routes pour les propriétaires de parking
+// Route pour obtenir les réservations des parkings d'un propriétaire
+router.get('/owner-reservations', verifyToken, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est un propriétaire
+    if (req.user.role !== 'Owner') {
+      return res.status(403).json({ message: 'Accès refusé. Vous devez être propriétaire pour accéder à cette ressource.' });
+    }
+
+    const ownerId = req.user.id;
+    console.log("🔍 Recherche des réservations pour le propriétaire:", ownerId);
+
+    // Trouver tous les parkings appartenant à ce propriétaire
+    const ownerParkings = await Parking.find({ Owner: ownerId });
+    
+    if (!ownerParkings || ownerParkings.length === 0) {
+      return res.status(200).json([]);
+    }
+    
+    const parkingIds = ownerParkings.map(parking => parking._id);
+    
+    // Trouver toutes les réservations pour ces parkings
+    const reservations = await Reservation.find({ 
+      parkingId: { $in: parkingIds }
+    })
+      .populate('parkingId')
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ ${reservations.length} réservations trouvées pour les parkings du propriétaire`);
+    res.status(200).json(reservations);
+  } catch (error) {
+    console.error("❌ Erreur:", error);
+    res.status(500).json({
+      message: "Erreur lors de la récupération des réservations",
+      error: error.message
+    });
+  }
+});
+
+// Route pour qu'un propriétaire accepte ou rejette une réservation
+router.put('/owner-reservations/:id/status', verifyToken, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est un propriétaire
+    if (req.user.role !== 'Owner') {
+      return res.status(403).json({ message: 'Accès refusé. Vous devez être propriétaire pour effectuer cette action.' });
+    }
+
+    const { status } = req.body;
+    const reservationId = req.params.id;
+    const ownerId = req.user.id;
+
+    // Vérifier que le statut est valide
+    if (!['accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Statut invalide. Le statut doit être "accepted" ou "rejected".' });
+    }
+
+    // Trouver la réservation
+    const reservation = await Reservation.findById(reservationId).populate('parkingId');
+    
+    if (!reservation) {
+      return res.status(404).json({ message: 'Réservation non trouvée' });
+    }
+
+    // Vérifier que le parking appartient au propriétaire
+    if (!reservation.parkingId || reservation.parkingId.Owner.toString() !== ownerId) {
+      return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette réservation' });
+    }
+
+    // Mise à jour du statut
+    reservation.status = status;
+    await reservation.save();
+
+    // Mettre à jour la disponibilité des places si nécessaire
+    if (status === 'accepted') {
+      // Réduire le nombre de places disponibles
+      const parking = await Parking.findById(reservation.parkingId);
+      if (parking && parking.availableSpots > 0) {
+        parking.availableSpots -= 1;
+        await parking.save();
+      }
+    }
+
+    // Créer une notification pour informer l'utilisateur
+    const notificationStatus = status === 'accepted' ? 'acceptée' : 'refusée';
+    await notificationService.createNotification({
+      driverId: reservation.userId,
+      ownerId: ownerId,
+      parkingId: reservation.parkingId._id,
+      reservationId: reservation._id,
+      status: notificationStatus
+    });
+
+    res.status(200).json({ 
+      message: `Réservation ${status === 'accepted' ? 'acceptée' : 'refusée'} avec succès`,
+      reservation
+    });
+  } catch (error) {
+    console.error("❌ Erreur:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/reservations/by-spot', verifyToken,  async (req, res) => {
   try {
     const { parkingId, spotId } = req.query;
@@ -250,9 +354,6 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
 router.get("/reservations/:id/user", getUserByReservation);
-//  router.get("/reservations", getReservations);
-// router.get("/reservations/:id", getReservationById);
-// router.put("/reservations/:id", updateReservation);
-// router.delete("/reservations/:id", deleteReservation);
+
 
 module.exports = router;
