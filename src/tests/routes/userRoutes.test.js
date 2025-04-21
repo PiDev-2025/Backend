@@ -118,7 +118,7 @@ describe("User Routes", () => {
       const userData = {
         name: "New User",
         email: "new@example.com",
-        password: "password123",
+        password: TEST_PASSWORD,
         role: "Driver",
       };
 
