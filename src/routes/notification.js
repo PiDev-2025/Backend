@@ -1,13 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
+const helmet = require('helmet');
 
-// Configure the email transporter
+// Appliquer les protections contre le fingerprinting
+router.use(helmet.hidePoweredBy());
+
+// Configure the email transporter with secure connection
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // use SSL/TLS
   auth: {
-    user: process.env.EMAIL_USER ,
-    pass: process.env.EMAIL_PASS 
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    // Do not fail on invalid certificates
+    rejectUnauthorized: false
   }
 });
 
