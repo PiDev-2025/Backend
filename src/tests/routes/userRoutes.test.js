@@ -7,6 +7,9 @@ const { verifyToken } = require("../../middlewares/authMiddleware");
 const { getUserFromToken } = require("../../middlewares/uploadMiddleware");
 const userService = require("../../services/userService");
 
+// Test constants to avoid hardcoded credentials
+const TEST_PASSWORD = "[PLACEHOLDER_PASSWORD]";
+
 // Mock dependencies
 jest.mock("../../middlewares/authMiddleware");
 jest.mock("../../middlewares/uploadMiddleware");
@@ -43,7 +46,7 @@ describe("User Routes", () => {
       const userData = {
         name: "Test User",
         email: "test@example.com",
-        password: "password123",
+        password: TEST_PASSWORD,
         phone: 1234567890,
         role: "Driver",
       };
