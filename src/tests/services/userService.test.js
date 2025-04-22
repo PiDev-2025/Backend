@@ -20,6 +20,7 @@ const sendEmail = require("../../utils/SignUpMailVerif");
 
 // Test constants to avoid hardcoded credentials
 const TEST_PASSWORD = "[TEST_PASSWORD_PLACEHOLDER]";
+const TEST_HASHED_PASSWORD = "[TEST_HASHED_PASSWORD]";
 
 // Mock dependencies
 jest.mock("../../models/userModel");
@@ -74,7 +75,7 @@ describe("User Service", () => {
 
     test("should send OTP and return 200 for new user", async () => {
       User.findOne.mockResolvedValue(null);
-      bcrypt.hash.mockResolvedValue("hashedPassword");
+      bcrypt.hash.mockResolvedValue(TEST_HASHED_PASSWORD);
       sendEmail.mockResolvedValue(true);
 
       await signup(req, res);
@@ -155,7 +156,7 @@ describe("User Service", () => {
       });
 
       bcrypt.genSalt.mockResolvedValue("salt");
-      bcrypt.hash.mockResolvedValue("hashedPassword");
+      bcrypt.hash.mockResolvedValue(TEST_HASHED_PASSWORD);
     });
 
     test("should create a new user and return 201", async () => {
@@ -209,7 +210,7 @@ describe("User Service", () => {
       User.findOne.mockResolvedValue({
         _id: "userId",
         email: "user@example.com",
-        password: "hashedPassword",
+        password: TEST_HASHED_PASSWORD,
       });
       bcrypt.compare.mockResolvedValue(false);
 
@@ -217,7 +218,7 @@ describe("User Service", () => {
 
       expect(bcrypt.compare).toHaveBeenCalledWith(
         TEST_PASSWORD,
-        "hashedPassword"
+        TEST_HASHED_PASSWORD
       );
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -229,7 +230,7 @@ describe("User Service", () => {
       User.findOne.mockResolvedValue({
         _id: "userId",
         email: "user@example.com",
-        password: "hashedPassword",
+        password: TEST_HASHED_PASSWORD,
       });
       bcrypt.compare.mockResolvedValue(true);
       sendEmail.mockResolvedValue(true);
