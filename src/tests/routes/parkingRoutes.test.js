@@ -40,7 +40,6 @@ jest.mock('express', () => {
   return expressInstance;
 });
 
-// Now we can safely require parkingRoutes after mocking express
 const express = require('express');
 const parkingRoutes = require('../../routes/parkingRoutes');
 
