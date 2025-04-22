@@ -17,6 +17,8 @@ jest.mock("../../services/userService");
 
 // Create express app for testing
 const app = express();
+// Désactiver l'en-tête X-Powered-By pour éviter le fingerprinting
+app.disable('x-powered-by');
 app.use(express.json());
 app.use("/api", userRoutes);
 

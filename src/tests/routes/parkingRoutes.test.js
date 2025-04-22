@@ -26,11 +26,12 @@ const mockRouter = {
   use: jest.fn().mockReturnThis()
 };
 
-// Mock express module
+// Mock express module - including disable method for security
 jest.mock('express', () => {
   const expressInstance = jest.fn(() => ({
     use: jest.fn(),
-    json: jest.fn().mockReturnThis()
+    json: jest.fn().mockReturnThis(),
+    disable: jest.fn() // Add disable method for fingerprinting protection
   }));
   
   expressInstance.json = jest.fn().mockReturnValue(jest.fn());
@@ -44,6 +45,8 @@ const express = require('express');
 const parkingRoutes = require('../../routes/parkingRoutes');
 
 const app = express();
+// Protection contre le fingerprinting
+app.disable('x-powered-by');
 app.use(express.json());
 app.use('/api', parkingRoutes);
 
