@@ -1,5 +1,12 @@
 const express = require("express");
 const app = express();
+// Protection contre le fingerprinting - désactiver l'en-tête X-Powered-By
+app.disable('x-powered-by');
+
+// Ajouter helmet pour une sécurité renforcée
+const helmet = require("helmet");
+app.use(helmet());
+
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
 const cors = require("cors");
@@ -10,22 +17,30 @@ const http = require("http");
 const session = require("express-session");
 require("dotenv").config();
 
+// Définition explicite d'une clé secrète de session pour éviter l'erreur "secret option required for sessions"
+const SESSION_SECRET = process.env.SESSION_SECRET || "parkini_secure_session_key_2025";
+
 connectDB();
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 // CORS Configuration
-const allowedOrigins = ["http://localhost:3000", "http://localhost:5173"];
+const allowedOrigins = ["http://localhost:3000", "http://localhost:5173", 
+  // Ajouter ici vos domaines de production avec HTTPS
+  "https://yourproductiondomain.com"
+];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`CORS blocked origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "PUT","PATCH" , "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
+  maxAge: 86400, // 24 heures de mise en cache des préflight requests
 };
 
 // Apply CORS Middleware
@@ -35,13 +50,17 @@ app.options("*", cors(corsOptions)); // Handle preflight requests
 // Express Middleware
 app.use(express.json());
 
-// Express-Session Configuration
+// Express-Session Configuration - Utilisation de la clé secrète définie explicitement
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your_secret_key",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false },
+    cookie: { 
+      secure: process.env.NODE_ENV === 'production', // En production, activer HTTPS uniquement
+      httpOnly: false, // Empêche l'accès via JavaScript côté client
+      sameSite: 'strict' // Protection contre CSRF
+    },
   })
 );
 
@@ -101,6 +120,8 @@ app.use("/api", subscriptionRoutes);
 app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use("/api/notifications", notificationRoutes);
+app.use('/api/notify', notificationRoutes);
+
 // Test Route
 app.get("/", (req, res) => {
   res.send("MongoDB is connected to Express!");
