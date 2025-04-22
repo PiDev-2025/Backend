@@ -3,9 +3,22 @@ const app = express();
 // Protection contre le fingerprinting - désactiver l'en-tête X-Powered-By
 app.disable('x-powered-by');
 
-// Ajouter helmet pour une sécurité renforcée
+// Ajouter helmet pour une sécurité renforcée avec paramètres spécifiques
 const helmet = require("helmet");
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https:"]
+    }
+  },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
 
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
@@ -21,7 +34,8 @@ require("dotenv").config();
 const SESSION_SECRET = process.env.SESSION_SECRET || "parkini_secure_session_key_2025";
 
 connectDB();
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
+// Supprimer l'affichage des secrets dans les logs
+// console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 // CORS Configuration
 const allowedOrigins = ["http://localhost:3000", "http://localhost:5173", 
@@ -48,7 +62,8 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Handle preflight requests
 
 // Express Middleware
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // Limite la taille des requêtes JSON
+app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Limite la taille des requêtes formulaires
 
 // Express-Session Configuration - Utilisation de la clé secrète définie explicitement
 app.use(
@@ -58,8 +73,9 @@ app.use(
     saveUninitialized: false,
     cookie: { 
       secure: process.env.NODE_ENV === 'production', // En production, activer HTTPS uniquement
-      httpOnly: false, // Empêche l'accès via JavaScript côté client
-      sameSite: 'strict' // Protection contre CSRF
+      httpOnly: true, // CORRECTION: Activer httpOnly pour empêcher l'accès via JavaScript côté client
+      sameSite: 'strict', // Protection contre CSRF
+      maxAge: 3600000 // Session d'une heure (en millisecondes)
     },
   })
 );
