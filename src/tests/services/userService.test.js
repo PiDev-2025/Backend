@@ -18,6 +18,9 @@ const {
 } = require("../../services/userService");
 const sendEmail = require("../../utils/SignUpMailVerif");
 
+// Test constants to avoid hardcoded credentials
+const TEST_PASSWORD = "[TEST_PASSWORD_PLACEHOLDER]";
+
 // Mock dependencies
 jest.mock("../../models/userModel");
 jest.mock("bcryptjs");
@@ -50,7 +53,7 @@ describe("User Service", () => {
       req.body = {
         name: "Test User",
         email: "test@example.com",
-        password: "password123",
+        password: TEST_PASSWORD,
         phone: 1234567890,
         role: "Driver",
         vehicleType: "Citadine",
@@ -77,7 +80,7 @@ describe("User Service", () => {
       await signup(req, res);
 
       expect(User.findOne).toHaveBeenCalledWith({ email: "test@example.com" });
-      expect(bcrypt.hash).toHaveBeenCalledWith("password123", 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith(TEST_PASSWORD, 10);
       expect(sendEmail).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
@@ -131,7 +134,7 @@ describe("User Service", () => {
       req.body = {
         name: "New User",
         email: "new@example.com",
-        password: "password123",
+        password: TEST_PASSWORD,
         role: "Driver",
       };
 
@@ -159,7 +162,7 @@ describe("User Service", () => {
       await createUser(req, res);
 
       expect(bcrypt.genSalt).toHaveBeenCalledWith(10);
-      expect(bcrypt.hash).toHaveBeenCalledWith("password123", "salt");
+      expect(bcrypt.hash).toHaveBeenCalledWith(TEST_PASSWORD, "salt");
       expect(res.status).toHaveBeenCalledWith(201);
       // Update test to match actual implementation behavior
       expect(res.json).toHaveBeenCalled();
@@ -186,7 +189,7 @@ describe("User Service", () => {
     beforeEach(() => {
       req.body = {
         email: "user@example.com",
-        password: "password123",
+        password: TEST_PASSWORD,
       };
     });
 
@@ -213,7 +216,7 @@ describe("User Service", () => {
       await loginUser(req, res);
 
       expect(bcrypt.compare).toHaveBeenCalledWith(
-        "password123",
+        TEST_PASSWORD,
         "hashedPassword"
       );
       expect(res.status).toHaveBeenCalledWith(400);
