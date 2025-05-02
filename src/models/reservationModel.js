@@ -55,10 +55,12 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     enum: ['cash', 'online'],
     required: true
+  },
+  matricule: {
+    type: String,
+    required: false
   }
 }, { timestamps: true });
-
-
 
 reservationSchema.index({ userId: 1 });
 reservationSchema.index({ parkingId: 1 });

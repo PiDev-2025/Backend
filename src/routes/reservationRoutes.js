@@ -12,7 +12,7 @@ router.post('/reservations', verifyToken, async (req, res) => {
   try {
     console.log("Données reçues pour la réservation:", req.body);
 
-    const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod, spotId } = req.body;
+    const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod, spotId, matricule } = req.body;
 
     // Validation des données
     if (!parkingId || !startTime || !endTime || !vehicleType || totalPrice === undefined || !spotId) {
@@ -36,6 +36,7 @@ router.post('/reservations', verifyToken, async (req, res) => {
       totalPrice,
       paymentMethod: paymentMethod || 'cash',
       spotId,
+      matricule: matricule || null
     };
 
     console.log("Données de réservation formatées:", reservationData);
@@ -87,7 +88,7 @@ router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
     })
       .populate({
         path: 'parkingId',
-        select: 'name position location pricing totalSpots availableSpots',
+        select: 'name position location pricing totalSpots availableSpots matricule',
         // Assurez-vous que toutes les données nécessaires sont sélectionnées
       })
       .sort({ createdAt: -1 });
@@ -112,6 +113,7 @@ router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
         vehicleType: reservation.vehicleType,
         totalPrice: reservation.totalPrice,
         qrCode: reservation.qrCode,
+        matricule: reservation.matricule,
         parkingId: {
           _id: reservation.parkingId._id,
           name: reservation.parkingId.name,
@@ -357,5 +359,19 @@ router.get('/:id', verifyToken, async (req, res) => {
 router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
 router.get("/reservations/:id/user", getUserByReservation);
 
+// Route pour obtenir les réservations par matricule
+router.get('/reservations/matricule/:matricule', verifyToken, async (req, res) => {
+    try {
+        const result = await getReservationsByMatricule(req.params.matricule);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération des réservations',
+            error: error.message
+        });
+    }
+});
 
 module.exports = router;
