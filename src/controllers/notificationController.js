@@ -313,10 +313,30 @@ exports.deleteNotification = async (req, res) => {
 // Compter les notifications non lues
 exports.countUnread = async (req, res) => {
     try {
-        const count = await Notification.countDocuments({
-            recipient: req.user._id,
-            isRead: false
-        });
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Utilisateur non authentifié'
+            });
+        }
+
+        const userId = req.user._id;
+        let query = { ownerId: userId, isRead: false };
+
+        // Recherche des parkings dont l'utilisateur est employé
+        const employeeParkings = await Parking.find({ id_employee: userId }).lean().exec();
+        
+        if (employeeParkings && employeeParkings.length > 0) {
+            const parkingIds = employeeParkings.map(parking => parking._id);
+            query = {
+                $or: [
+                    { ownerId: userId, isRead: false },
+                    { parkingId: { $in: parkingIds }, isRead: false }
+                ]
+            };
+        }
+
+        const count = await Notification.countDocuments(query);
 
         res.status(200).json({
             success: true,

@@ -4,6 +4,9 @@ const notificationService = require('../controllers/notificationController'); //
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
 const { isValidObjectId } = require('mongoose');
+const Notification = require('../models/notificationModel'); // Assurez-vous que le chemin est correct
+const nodemailer = require('nodemailer');
+const { getReservationConfirmationTemplate } = require('../utils/reservationMailTemplate');
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
@@ -160,21 +163,117 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
     throw new Error('ID de réservation invalide');
   }
 
-  // Vérifier que le statut est valide selon votre modèle
   const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'canceled'];
   if (!validStatuses.includes(newStatus)) {
     throw new Error('Statut de réservation invalide');
   }
 
-  const reservation = await Reservation.findOneAndUpdate(
-    { _id: reservationId },
-    { status: newStatus },
-    { new: true, runValidators: true }
-  );
-
+  const reservation = await Reservation.findById(reservationId);
   if (!reservation) {
     throw new Error('Réservation non trouvée');
   }
+
+  if (newStatus === 'accepted') {
+    // Récupérer les informations complètes de la réservation
+    const reservation = await Reservation.findById(reservationId)
+      .populate('userId')
+      .populate('parkingId');
+
+    // Rejeter les réservations qui se chevauchent
+    const overlappingReservations = await Reservation.find({
+      _id: { $ne: reservationId },
+      parkingId: reservation.parkingId,
+      spotId: reservation.spotId,
+      status: { $in: ['pending', 'accepted'] },
+      $or: [
+        {
+          startTime: { $lt: reservation.endTime },
+          endTime: { $gt: reservation.startTime }
+        }
+      ]
+    });
+
+    // Rejeter toutes les réservations qui se chevauchent
+    for (const overlap of overlappingReservations) {
+      overlap.status = 'rejected';
+      await overlap.save();
+      
+      await Notification.findOneAndUpdate(
+        { reservationId: overlap._id },
+        { 
+          status: 'refusée',
+          isRead: false
+        },
+        { new: true }
+      );
+    }
+
+    // Génération du QR code en base64
+    const qrData = JSON.stringify({
+      reservationId: reservation._id,
+      parkingName: reservation.parkingId.name,
+      driverName: reservation.userId.name,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      totalPrice: reservation.totalPrice,
+      vehicleType: reservation.vehicleType
+    });
+
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData);
+    // Extraire seulement la partie base64 de l'URL de données
+    const base64QR = qrCodeDataUrl.split(',')[1];
+
+    // Configuration du transporteur d'email avec les images intégrées
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    // Préparer et envoyer l'email avec l'image QR intégrée
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: reservation.userId.email,
+      subject: 'Confirmation de votre réservation de parking',
+      html: getReservationConfirmationTemplate(
+        reservation.userId.name,
+        reservation.parkingId.name,
+        'cid:qrcode', // Référence à l'image intégrée
+        reservation.startTime,
+        reservation.endTime,
+        reservation.spotId
+      ),
+      attachments: [{
+        filename: 'qrcode.png',
+        content: base64QR,
+        encoding: 'base64',
+        cid: 'qrcode' // même identifiant que dans le template
+      }]
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Email de confirmation envoyé avec succès');
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de l\'email:', error);
+    }
+  }
+
+  // Mettre à jour le statut de la réservation actuelle
+  reservation.status = newStatus;
+  await reservation.save();
+
+  // Mettre à jour la notification existante au lieu d'en créer une nouvelle
+  await Notification.findOneAndUpdate(
+    { reservationId: reservationId },
+    { 
+      status: newStatus === 'accepted' ? 'acceptée' : 'refusée',
+      isRead: false
+    },
+    { new: true }
+  );
 
   return reservation;
 }

@@ -27,6 +27,7 @@ const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 const http = require("http");
+const { Server } = require("socket.io");
 const session = require("express-session");
 require("dotenv").config();
 
@@ -124,6 +125,40 @@ app.get('/metrics', async (req, res) => {
     }
 });
 
+// Create HTTP & Socket.IO server
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"]
+  }
+});
+
+// Socket.IO Connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Authenticate socket connection using token
+  socket.on('authenticate', async (token) => {
+    try {
+      // Verify token and get user ID
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
+      // Join a room specific to this user
+      socket.join(`user_${decoded.id}`);
+    } catch (error) {
+      console.error('Socket authentication failed:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+// Make io accessible to our routes
+app.set('io', io);
+
 // Define Routes
 app.use("/auth", authRoutes);
 
@@ -144,7 +179,6 @@ app.get("/", (req, res) => {
 });
 
 // Start Server
-const server = http.createServer(app);
 server.listen(port, () => {
   console.log(`Server started on port ${port}!`);
 });
