@@ -8,7 +8,10 @@
     "test:watch": "jest --config jest.config.js --watch",
     "test:coverage": "jest --config jest.config.js --coverage",
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "setup-python": "cd Car-Number-Plates-Detection-IA-Model- && install_dependencies.bat",
+    "setup-python-linux": "cd Car-Number-Plates-Detection-IA-Model- && bash install_dependencies.sh",
+    "test-plate-detection": "node scripts/test-plate-detection.js"
   },
   "author": "",
   "license": "ISC",
