@@ -27,6 +27,7 @@ const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 const http = require("http");
+const { Server } = require("socket.io");
 const session = require("express-session");
 require("dotenv").config();
 
@@ -96,6 +97,21 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage }).single("image");
 
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const path = require('path');
+const uploadsDir = path.join(__dirname, 'uploads/plates');
+if (!fs.existsSync(uploadsDir)){
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Import Routes
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
@@ -107,9 +123,17 @@ const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
+
 const paymentRoutes = require("./src/routes/paymentRoutes");
+
+const plateDetectionRoutes = require('./src/routes/plateDetectionRoutes');
+
+
 // Import Monitoring
 const { register, metricsMiddleware } = require('./src/monitoring');
+
+// Import error handlers
+const claimErrorHandler = require('./src/middlewares/claimErrorHandler');
 
 // Ajoutez le middleware de métriques
 app.use(metricsMiddleware);
@@ -124,6 +148,40 @@ app.get('/metrics', async (req, res) => {
     }
 });
 
+// Create HTTP & Socket.IO server
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"]
+  }
+});
+
+// Socket.IO Connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Authenticate socket connection using token
+  socket.on('authenticate', async (token) => {
+    try {
+      // Verify token and get user ID
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
+      // Join a room specific to this user
+      socket.join(`user_${decoded.id}`);
+    } catch (error) {
+      console.error('Socket authentication failed:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+// Make io accessible to our routes
+app.set('io', io);
+
 // Define Routes
 app.use("/auth", authRoutes);
 
@@ -137,7 +195,13 @@ app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/notify', notificationRoutes);
+
 app.use('/api/payments', paymentRoutes);
+
+app.use('/api/plate-detection', plateDetectionRoutes);
+
+// Add error handlers
+app.use(claimErrorHandler);
 
 // Test Route
 app.get("/", (req, res) => {
@@ -145,7 +209,6 @@ app.get("/", (req, res) => {
 });
 
 // Start Server
-const server = http.createServer(app);
 server.listen(port, () => {
   console.log(`Server started on port ${port}!`);
 });

@@ -12,7 +12,7 @@ router.post('/reservations', verifyToken, async (req, res) => {
   try {
     console.log("Données reçues pour la réservation:", req.body);
 
-    const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod, spotId } = req.body;
+    const { parkingId, startTime, endTime, vehicleType, totalPrice, paymentMethod, spotId, matricule } = req.body;
 
     // Validation des données
     if (!parkingId || !startTime || !endTime || !vehicleType || totalPrice === undefined || !spotId) {
@@ -36,6 +36,7 @@ router.post('/reservations', verifyToken, async (req, res) => {
       totalPrice,
       paymentMethod: paymentMethod || 'cash',
       spotId,
+      matricule: matricule || null
     };
 
     console.log("Données de réservation formatées:", reservationData);
@@ -87,7 +88,7 @@ router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
     })
       .populate({
         path: 'parkingId',
-        select: 'name position location pricing totalSpots availableSpots',
+        select: 'name position location pricing totalSpots availableSpots matricule',
         // Assurez-vous que toutes les données nécessaires sont sélectionnées
       })
       .sort({ createdAt: -1 });
@@ -112,6 +113,7 @@ router.get('/reservations/my-reservations', verifyToken, async (req, res) => {
         vehicleType: reservation.vehicleType,
         totalPrice: reservation.totalPrice,
         qrCode: reservation.qrCode,
+        matricule: reservation.matricule,
         parkingId: {
           _id: reservation.parkingId._id,
           name: reservation.parkingId.name,
@@ -179,7 +181,6 @@ router.get('/owner-reservations', verifyToken, async (req, res) => {
 // Route pour qu'un propriétaire accepte ou rejette une réservation
 router.put('/owner-reservations/:id/status', verifyToken, async (req, res) => {
   try {
-    // Vérifier que l'utilisateur est un propriétaire
     if (req.user.role !== 'Owner') {
       return res.status(403).json({ message: 'Accès refusé. Vous devez être propriétaire pour effectuer cette action.' });
     }
@@ -188,50 +189,15 @@ router.put('/owner-reservations/:id/status', verifyToken, async (req, res) => {
     const reservationId = req.params.id;
     const ownerId = req.user.id;
 
-    // Vérifier que le statut est valide
     if (!['accepted', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Statut invalide. Le statut doit être "accepted" ou "rejected".' });
     }
 
-    // Trouver la réservation
-    const reservation = await Reservation.findById(reservationId).populate('parkingId');
-    
-    if (!reservation) {
-      return res.status(404).json({ message: 'Réservation non trouvée' });
-    }
-
-    // Vérifier que le parking appartient au propriétaire
-    if (!reservation.parkingId || reservation.parkingId.Owner.toString() !== ownerId) {
-      return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette réservation' });
-    }
-
-    // Mise à jour du statut
-    reservation.status = status;
-    await reservation.save();
-
-    // Mettre à jour la disponibilité des places si nécessaire
-    if (status === 'accepted') {
-      // Réduire le nombre de places disponibles
-      const parking = await Parking.findById(reservation.parkingId);
-      if (parking && parking.availableSpots > 0) {
-        parking.availableSpots -= 1;
-        await parking.save();
-      }
-    }
-
-    // Créer une notification pour informer l'utilisateur
-    const notificationStatus = status === 'accepted' ? 'acceptée' : 'refusée';
-    await notificationService.createNotification({
-      driverId: reservation.userId,
-      ownerId: ownerId,
-      parkingId: reservation.parkingId._id,
-      reservationId: reservation._id,
-      status: notificationStatus
-    });
+    const updatedReservation = await updateReservationStatus(reservationId, status, ownerId);
 
     res.status(200).json({ 
       message: `Réservation ${status === 'accepted' ? 'acceptée' : 'refusée'} avec succès`,
-      reservation
+      reservation: updatedReservation
     });
   } catch (error) {
     console.error("❌ Erreur:", error);
@@ -239,7 +205,7 @@ router.put('/owner-reservations/:id/status', verifyToken, async (req, res) => {
   }
 });
 
-router.get('/reservations/by-spot', verifyToken,  async (req, res) => {
+router.get('/reservations/by-spot', async (req, res) => {
   try {
     const { parkingId, spotId } = req.query;
     
@@ -247,15 +213,31 @@ router.get('/reservations/by-spot', verifyToken,  async (req, res) => {
       return res.status(400).json({ message: "parkingId et spotId sont requis" });
     }
     
-    // Récupérer les réservations pour cette place de parking
+    // Récupérer les réservations pour cette place de parking avec les détails de l'utilisateur
     const reservations = await Reservation.find({
       parkingId,
       spotId,
-      // Optionnel: filtrer par date pour n'obtenir que les réservations actuelles ou à venir
-      endTime: { $gte: new Date() } 
-    }).sort({ startTime: 1 });
+      endTime: { $gte: new Date() }
+    })
+    .populate({
+      path: 'userId',
+      select: 'name email phone', // Sélectionner explicitement les champs de l'utilisateur
+      model: 'User' // Spécifier explicitement le modèle
+    })
+    .populate('parkingId')
+    .sort({ startTime: 1 });
+
+    // Formater les données pour inclure les informations client
+    const formattedReservations = reservations.map(reservation => ({
+      ...reservation.toObject(),
+      client: {
+        name: reservation.userId?.name || 'N/A',
+        phone: reservation.userId?.phone || 'N/A',
+        email: reservation.userId?.email || 'N/A'
+      }
+    }));
     
-    res.json(reservations);
+    res.json(formattedReservations);
   } catch (error) {
     console.error('Erreur lors de la récupération des réservations:', error);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -385,5 +367,19 @@ router.get('/reservation/user/:userId', verifyToken, async (req, res) => {
 router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
 router.get("/reservations/:id/user", getUserByReservation);
 
+// Route pour obtenir les réservations par matricule
+router.get('/reservations/matricule/:matricule', verifyToken, async (req, res) => {
+    try {
+        const result = await getReservationsByMatricule(req.params.matricule);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération des réservations',
+            error: error.message
+        });
+    }
+});
 
 module.exports = router;

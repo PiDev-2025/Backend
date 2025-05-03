@@ -1,31 +1,31 @@
 const getParkingRequestEmailTemplate = (status, parkingName, ownerName) => {
-  const statusText = status === 'accepted' ? 'acceptée' : 'refusée';
+  const statusText = status === 'accepted' ? 'accepted' : 'rejected';
   const statusEmoji = status === 'accepted' ? '✅' : '❌';
 
   return {
-    subject: `${statusEmoji} Mise à jour de votre demande de parking - ${statusText}`,
+    subject: `${statusEmoji} Parking Request Update - ${statusText}`,
     message: `
-Cher/Chère ${ownerName},
+Dear ${ownerName},
 
-Nous vous informons que votre demande concernant le parking "${parkingName}" a été ${statusText}.
+We inform you that your request for parking "${parkingName}" has been ${statusText}.
 
 ${status === 'accepted' ? `
-🎉 Félicitations ! Votre parking a été validé et est maintenant visible sur notre plateforme.
-Vous pouvez dès à présent :
-- Gérer votre parking depuis votre tableau de bord
-- Assigner des employés
-- Suivre les réservations` : `
-Malheureusement, votre demande n'a pas été approuvée. Voici quelques raisons possibles :
-- Informations incomplètes
-- Photos non conformes
-- Emplacement non éligible
+🎉 Congratulations! Your parking has been validated and is now visible on our platform.
+You can now:
+- Manage your parking from your dashboard
+- Assign employees
+- Track reservations` : `
+Unfortunately, your request has not been approved. Here are some possible reasons:
+- Incomplete information
+- Non-compliant photos
+- Ineligible location
 
-N'hésitez pas à soumettre une nouvelle demande en tenant compte de nos critères.`}
+Feel free to submit a new request taking into account our criteria.`}
 
-Pour toute question, notre équipe support reste à votre disposition.
+For any questions, our support team remains at your disposal.
 
-Cordialement,
-L'équipe Parkini
+Best regards,
+The Parkini Team
     `
   };
 };
