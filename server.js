@@ -97,6 +97,21 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage }).single("image");
 
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const path = require('path');
+const uploadsDir = path.join(__dirname, 'uploads/plates');
+if (!fs.existsSync(uploadsDir)){
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Import Routes
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
@@ -108,9 +123,13 @@ const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
+const plateDetectionRoutes = require('./src/routes/plateDetectionRoutes');
 
 // Import Monitoring
 const { register, metricsMiddleware } = require('./src/monitoring');
+
+// Import error handlers
+const claimErrorHandler = require('./src/middlewares/claimErrorHandler');
 
 // Ajoutez le middleware de métriques
 app.use(metricsMiddleware);
@@ -172,6 +191,10 @@ app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/notify', notificationRoutes);
+app.use('/api/plate-detection', plateDetectionRoutes);
+
+// Add error handlers
+app.use(claimErrorHandler);
 
 // Test Route
 app.get("/", (req, res) => {

@@ -120,6 +120,7 @@ const createReservation = async (reservationData) => {
       endTime: reservationData.endTime,
       vehicleType: reservationData.vehicleType,
       totalPrice: reservationData.totalPrice,
+      matricule: reservationData.matricule,
       paymentMethod: reservationData.paymentMethod || 'cash',
       status: 'pending'
     });
@@ -544,6 +545,29 @@ const getOwnerReservations = async (ownerId) => {
   }
 };
 
+const getReservationsByMatricule = async (matricule) => {
+  try {
+    // Rechercher toutes les réservations avec cette matricule
+    const reservations = await Reservation.find({ 
+      matricule: matricule,
+      status: { $in: ['active', 'pending'] }
+    })
+    .populate('parkingId', 'name location pricing') // Informations sur le parking
+    .populate('userId', 'name email phone') // Informations sur l'utilisateur
+    .sort({ createdAt: -1 });
+
+    return {
+      success: true,
+      count: reservations.length,
+      reservations: reservations,
+      matricule: matricule
+    };
+  } catch (error) {
+    console.error('❌ Error fetching reservations by matricule:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   checkAvailability,
   createReservation,
@@ -555,5 +579,6 @@ module.exports = {
   deleteReservation,
   checkRealSpotStatus,
   getUserByReservation,
-  getOwnerReservations
+  getOwnerReservations,
+  getReservationsByMatricule
 };

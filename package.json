@@ -8,7 +8,10 @@
     "test:watch": "jest --config jest.config.js --watch",
     "test:coverage": "jest --config jest.config.js --coverage",
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "setup-python": "cd Car-Number-Plates-Detection-IA-Model- && install_dependencies.bat",
+    "setup-python-linux": "cd Car-Number-Plates-Detection-IA-Model- && bash install_dependencies.sh",
+    "test-plate-detection": "node scripts/test-plate-detection.js"
   },
   "author": "",
   "license": "ISC",
@@ -17,9 +20,10 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.6",
-    "axios": "^1.8.3",
+    "axios": "^1.9.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
+    "connect-mongo": "^5.1.0",
     "cookie-session": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -37,6 +41,7 @@
     "qrcode": "^1.5.4",
     "react-datetime-picker": "^6.0.1",
     "socket.io": "^4.8.1"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.x.x",
