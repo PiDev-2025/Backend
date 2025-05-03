@@ -1,5 +1,16 @@
 const Subscription = require("../models/subscriptionModel");
 
+// services/subscriptionService.js
+async function getSubscriptionsByUserId(userId) {
+  try {
+    const subscriptions = await Subscription.find({ userId }).populate('parkingId'); 
+    return subscriptions;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
+
 // Create a new subscription
 const createSubscription = async (req, res) => {
   try {
@@ -75,4 +86,5 @@ module.exports = {
   getSubscriptionById,
   updateSubscription,
   deleteSubscription,
+  getSubscriptionsByUserId,
 };

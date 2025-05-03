@@ -107,7 +107,7 @@ const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
 const passwordRoutes = require("./src/routes/passwordRoutes");
 const parkingRoutes = require("./src/routes/parkingRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
-
+const paymentRoutes = require("./src/routes/paymentRoutes");
 // Import Monitoring
 const { register, metricsMiddleware } = require('./src/monitoring');
 
@@ -137,6 +137,7 @@ app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/notify', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
