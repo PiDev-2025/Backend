@@ -5,7 +5,7 @@ const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
 const Reservation = require('../models/reservationModel');
 const User = require('../models/userModel');
-const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation, getOwnerReservations } = require('../services/reservationService');
+const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,getReservationsByUserId,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation, getOwnerReservations, updateReservationStatusPayment } = require('../services/reservationService');
 
 // Création de réservation
 router.post('/reservations', verifyToken, async (req, res) => {
@@ -284,6 +284,8 @@ router.put('/reservations/:id/status', verifyToken, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+router.put('/reservations/:id/statusPayment', verifyToken, updateReservationStatusPayment);
+
 
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
@@ -336,6 +338,32 @@ router.get('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+router.get('/reservation/user/:userId', verifyToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const latestReservation = await Reservation.findOne({ userId })
+      .populate({
+        path: 'parkingId',
+        select: 'name location pricing totalSpots availableSpots'
+      })
+      .sort({ createdAt: -1 }); // Get the latest reservation
+
+    if (!latestReservation) {
+      return res.status(404).json({ message: "No reservations found for this user." });
+    }
+
+    res.status(200).json(latestReservation);
+  } catch (error) {
+    console.error("❌ Error:", error);
+    res.status(500).json({
+      message: "Error retrieving latest reservation",
+      error: error.message
+    });
+  }
+});
+
 router.get('/reservations/checkAvailability/:parkingId/:spotId', checkAvailability);
 router.get("/reservations/:id/user", getUserByReservation);
 

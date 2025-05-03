@@ -1,4 +1,5 @@
 const Reservation = require("../models/reservationModel");
+
 const Parking = require('../models/parkingModel');
 const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
 const QRCode = require('qrcode');
@@ -8,8 +9,11 @@ const Notification = require('../models/notificationModel'); // Assurez-vous que
 const nodemailer = require('nodemailer');
 const { getReservationConfirmationTemplate, getReservationRejectionTemplate } = require('../utils/reservationMailTemplate');
 
+
 const calculatePrice = (startTime, endTime, pricing) => {
-  const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
+  const hours = Math.ceil(
+    (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60)
+  );
   let days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
 
@@ -46,7 +50,7 @@ const generateQRCode = async (reservationData) => {
     startTime: reservationData.startTime,
     endTime: reservationData.endTime,
     totalPrice: reservationData.totalPrice,
-    vehicleType: reservationData.vehicleType
+    vehicleType: reservationData.vehicleType,
   });
 
   return await QRCode.toDataURL(qrData);
@@ -62,41 +66,48 @@ const checkRealSpotStatus = async (spotId, currentStatus) => {
   try {
     // Obtenir l'heure actuelle
     const now = new Date();
-    
+
     // Chercher la réservation active ou prochaine pour cette place
     const activeReservation = await Reservation.findOne({
       spotId: spotId,
-      status: 'accepted',
+      status: "accepted",
       endTime: { $gte: now }, // La réservation n'est pas encore terminée
       $or: [
         { startTime: { $lte: now } }, // La réservation a déjà commencé
-        { startTime: { $lte: new Date(now.getTime() + 30 * 60000) } } // La réservation commence dans moins de 30 min
-      ]
+        { startTime: { $lte: new Date(now.getTime() + 30 * 60000) } }, // La réservation commence dans moins de 30 min
+      ],
     }).sort({ startTime: 1 }); // Trier par heure de début pour obtenir la plus proche
-    
+
     // Si aucune réservation n'est trouvée, la place est disponible
     if (!activeReservation) {
-      return 'available';
+      return "available";
     }
-    
+
     // Calculer la différence en minutes entre maintenant et le début de la réservation
-    const minutesUntilStart = Math.floor((activeReservation.startTime - now) / 60000);
-    
+    const minutesUntilStart = Math.floor(
+      (activeReservation.startTime - now) / 60000
+    );
+
     // Si la réservation a déjà commencé (entre startTime et endTime)
-    if (now >= activeReservation.startTime && now <= activeReservation.endTime) {
-      return 'reserved';
+    if (
+      now >= activeReservation.startTime &&
+      now <= activeReservation.endTime
+    ) {
+      return "reserved";
     }
-    
+
     // Si la réservation commence dans moins de 30 minutes
     if (minutesUntilStart <= 30) {
-      return 'occupied';
+      return "occupied";
     }
-    
+
     // Dans les autres cas, la place est disponible
-    return 'available';
-    
+    return "available";
   } catch (error) {
-    console.error('Erreur lors de la vérification du statut de la place:', error);
+    console.error(
+      "Erreur lors de la vérification du statut de la place:",
+      error
+    );
     // En cas d'erreur, on retourne le statut actuel pour ne pas bloquer le système
     return currentStatus;
   }
@@ -109,7 +120,11 @@ const createReservation = async (reservationData) => {
     // Vérifier la disponibilité du parking
     const parking = await Parking.findById(reservationData.parkingId);
     if (!parking) {
+
+      throw new Error("Parking non trouvé");
+
       throw new Error('Parking not found');
+
     }
 
     const reservation = new Reservation({
@@ -120,9 +135,13 @@ const createReservation = async (reservationData) => {
       endTime: reservationData.endTime,
       vehicleType: reservationData.vehicleType,
       totalPrice: reservationData.totalPrice,
+
+    
+
       matricule: reservationData.matricule,
       paymentMethod: reservationData.paymentMethod || 'cash',
       status: 'pending'
+
     });
 
     // Générer le QR code après la sauvegarde initiale
@@ -134,7 +153,7 @@ const createReservation = async (reservationData) => {
       startTime: reservation.startTime,
       endTime: reservation.endTime,
       vehicleType: reservation.vehicleType,
-      totalPrice: reservation.totalPrice
+      totalPrice: reservation.totalPrice,
     });
 
     reservation.qrCode = await QRCode.toDataURL(qrCodeData);
@@ -144,10 +163,10 @@ const createReservation = async (reservationData) => {
     // Créer la notification
     await notificationService.createNotification({
       driverId: reservationData.userId,
-      ownerId: parking.get('Owner'),
+      ownerId: parking.get("Owner"),
       parkingId: reservationData.parkingId,
       reservationId: reservation._id,
-      status: 'en_attente'
+      status: "en_attente",
     });
 
     console.log("✅ Reservation created successfully:", reservation);
@@ -201,12 +220,14 @@ const getRandomRejectionReason = () => {
 // Function to update reservation status
 async function updateReservationStatus(reservationId, newStatus, userId) {
   if (!mongoose.Types.ObjectId.isValid(reservationId)) {
+
     throw new Error('Invalid reservation ID');
   }
 
   const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'canceled'];
   if (!validStatuses.includes(newStatus)) {
     throw new Error('Invalid reservation status');
+
   }
 
   // Récupérer les informations complètes de la réservation
@@ -215,6 +236,7 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
     .populate('parkingId');
 
   if (!reservation) {
+
     throw new Error('Reservation not found');
   }
 
@@ -342,6 +364,7 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
     } catch (error) {
       console.error('Error sending rejection email:', error);
     }
+
   }
 
   // Mettre à jour le statut de la réservation actuelle
@@ -360,73 +383,105 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 
   return reservation;
 }
+const updateReservationStatusPayment = async (req, res) => {
+  try {
+    const { paymentStatus } = req.body;
+
+    const updatedReservation = await Reservation.findByIdAndUpdate(
+      req.params.id,
+      { paymentStatus },
+      { new: true }
+    );
+
+    if (!updatedReservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    res.status(200).json(updatedReservation);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
 
 const checkAvailability = async (req, res) => {
   try {
     const { parkingId, spotId } = req.params;
     const { startTime, endTime } = req.query;
-    
+
     // Validation des paramètres
     if (!isValidObjectId(parkingId)) {
+
       return res.status(400).json({ success: false, message: 'Invalid parking ID' });
     }
     
     if (!spotId || !spotId.startsWith('parking-spot-')) {
       return res.status(400).json({ success: false, message: 'Invalid spot ID' });
+
     }
-    
+
     if (!startTime || !endTime) {
+
       return res.status(400).json({ success: false, message: 'Start and end dates are required' });
+
     }
-    
+
     // Conversion et validation des dates
     const start = new Date(startTime);
     const end = new Date(endTime);
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+
       return res.status(400).json({ success: false, message: 'Invalid dates' });
+
     }
-    
+
     if (start >= end) {
+
       return res.status(400).json({ success: false, message: 'End date must be after start date' });
+
     }
-    
+
     if (start < new Date()) {
+
       return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
+
     }
-    
+
     // Recherche des réservations existantes qui se chevauchent avec la période demandée
     const overlappingReservations = await Reservation.find({
       parkingId,
       spotId,
-      status: { $nin: ['rejected', 'canceled'] },
+      status: { $nin: ["rejected", "canceled"] },
       $or: [
         // Début de réservation pendant la période demandée
         { startTime: { $lt: end, $gte: start } },
         // Fin de réservation pendant la période demandée
         { endTime: { $gt: start, $lte: end } },
         // Réservation englobant complètement la période demandée
-        { startTime: { $lte: start }, endTime: { $gte: end } }
-      ]
+        { startTime: { $lte: start }, endTime: { $gte: end } },
+      ],
     });
-    
+
     const isAvailable = overlappingReservations.length === 0;
-    
+
     return res.status(200).json({
       success: true,
       isAvailable,
+
       message: isAvailable 
         ? 'The spot is available for this period' 
         : 'The spot is not available for this period',
       overlappingReservations: isAvailable ? [] : overlappingReservations
+
     });
-    
   } catch (error) {
+
     console.error('Error checking availability:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error checking availability',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+
     });
   }
 };
@@ -434,8 +489,8 @@ const checkAvailability = async (req, res) => {
 const getReservations = async (req, res) => {
   try {
     const reservations = await Reservation.find()
-      .populate('parkingId')
-      .populate('userId');
+      .populate("parkingId")
+      .populate("userId");
     res.status(200).json(reservations);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -444,7 +499,9 @@ const getReservations = async (req, res) => {
 
 const getUserByReservation = async (req, res) => {
   try {
-    const reservation = await Reservation.findById(req.params.id).populate('userId');
+    const reservation = await Reservation.findById(req.params.id).populate(
+      "userId"
+    );
 
     if (!reservation) {
       return res.status(404).json({ message: "Reservation not found" });
@@ -462,10 +519,12 @@ const getUserByReservation = async (req, res) => {
 const getReservationById = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id)
-      .populate('parkingId')
-      .populate('userId');
+      .populate("parkingId")
+      .populate("userId");
     if (!reservation) {
+
       return res.status(404).json({ message: 'Reservation not found' });
+
     }
     res.status(200).json(reservation);
   } catch (error) {
@@ -492,6 +551,7 @@ const deleteReservation = async (req, res) => {
 
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) {
+
       console.warn("⚠️ Reservation not found:", req.params.id);
       return res.status(404).json({ message: 'Reservation not found' });
     }
@@ -500,18 +560,23 @@ const deleteReservation = async (req, res) => {
     const parking = await Parking.findById(reservation.parkingId);
     if (parking) {
       console.log("🔄 Found parking for reservation:", parking._id);
-      if (reservation.status === 'accepted') {
+      if (reservation.status === "accepted") {
         parking.availableSpots += 1;
         await parking.save();
-        console.log("✅ Parking spots restored. Available spots:", parking.availableSpots);
+        console.log(
+          "✅ Parking spots restored. Available spots:",
+          parking.availableSpots
+        );
       }
     } else {
+
       console.warn("⚠️ Parking not found for reservation:", reservation.parkingId);
     }
 
     await Reservation.findByIdAndDelete(reservation._id); // Use findByIdAndDelete instead of remove
     console.log("✅ Reservation successfully deleted:", reservation._id);
     res.status(200).json({ message: 'Reservation deleted' });
+
   } catch (error) {
     console.error("❌ Error deleting reservation:", error);
     res.status(500).json({ message: error.message });
@@ -523,27 +588,47 @@ const getOwnerReservations = async (ownerId) => {
   try {
     // Trouver tous les parkings appartenant à ce propriétaire
     const ownerParkings = await Parking.find({ Owner: ownerId });
-    
+
     if (!ownerParkings || ownerParkings.length === 0) {
       return [];
     }
-    
-    const parkingIds = ownerParkings.map(parking => parking._id);
-    
+
+    const parkingIds = ownerParkings.map((parking) => parking._id);
+
     // Trouver toutes les réservations pour ces parkings
-    const reservations = await Reservation.find({ 
-      parkingId: { $in: parkingIds }
+    const reservations = await Reservation.find({
+      parkingId: { $in: parkingIds },
     })
-      .populate('parkingId')
-      .populate('userId', 'name email phone') // Inclure seulement les infos nécessaires de l'utilisateur
+      .populate("parkingId")
+      .populate("userId", "name email phone") // Inclure seulement les infos nécessaires de l'utilisateur
       .sort({ createdAt: -1 });
 
     return reservations;
   } catch (error) {
+
     console.error("❌ Error retrieving owner's reservations:", error);
+
     throw error;
   }
 };
+
+
+const getReservationsByUserId = async (userId) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
+    const reservations = await Reservation.find({ userId })
+      .populate({
+        path: "parkingId",
+        select: "name location pricing totalSpots availableSpots",
+      })
+      .sort({ createdAt: -1 });
+
+    return reservations;
+  } catch (error) {
+    console.error("❌ Error fetching user reservations:", error);
 
 const getReservationsByMatricule = async (matricule) => {
   try {
@@ -564,6 +649,7 @@ const getReservationsByMatricule = async (matricule) => {
     };
   } catch (error) {
     console.error('❌ Error fetching reservations by matricule:', error);
+
     throw error;
   }
 };
@@ -580,5 +666,11 @@ module.exports = {
   checkRealSpotStatus,
   getUserByReservation,
   getOwnerReservations,
+
+  getReservationsByUserId,
+  updateReservationStatusPayment,
+};
+
   getReservationsByMatricule
 };
+
