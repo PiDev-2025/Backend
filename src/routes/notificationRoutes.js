@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 router.get('/all', getUserFromToken, notificationController.getUserNotifications);
 
 // Route pour compter les notifications non lues
-//router.get('/unread-count', getUserFromToken, notificationController.countUnread);
+router.get('/unread-count', getUserFromToken, notificationController.countUnread);
 
 // Route pour créer une nouvelle notification
 router.post('/', getUserFromToken, notificationController.createNotification); 
