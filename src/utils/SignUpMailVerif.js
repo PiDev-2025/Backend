@@ -1,4 +1,3 @@
-
 const nodemailer = require("nodemailer");
 
 const sendEmail = async (options) => {
@@ -273,5 +272,69 @@ const sendEmail = async (options) => {
   }
 };
 
-module.exports = sendEmail;
+const getSignUpVerificationTemplate = (email, token) => {
+  const verificationLink = `http://localhost:3000/confirm/${token}`;
+
+  return {
+    subject: "✨ Welcome to Parkini - Please Verify Your Email",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #4338CA; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .button-container { text-align: center; margin: 30px 0; }
+          .verify-button {
+            background: #4338CA;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+          }
+          .note { color: #666; font-size: 14px; text-align: center; margin: 20px 0; }
+          .info-section { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to Parkini! 🚗</h1>
+          </div>
+          <div class="content">
+            <p>Hello,</p>
+            <p>Thank you for registering with Parkini. We're excited to have you join our community!</p>
+            <p>To complete your registration and activate your account, please click the button below:</p>
+            
+            <div class="button-container">
+              <a href="${verificationLink}" class="verify-button">Verify My Email</a>
+            </div>
+
+            <p class="note">This verification link will expire in 24 hours.</p>
+            
+            <div class="info-section">
+              <p><strong>⚠️ If you did not create this account:</strong></p>
+              <p>Please ignore this email or contact our support team if you have concerns.</p>
+            </div>
+
+            <div class="footer">
+              <p>Need help? Contact our support team</p>
+              <p>Best regards,<br>The Parkini Team 🚀</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  };
+};
+
+module.exports = {
+  sendEmail,
+  getSignUpVerificationTemplate
+};
 

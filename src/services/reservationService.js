@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const { isValidObjectId } = require('mongoose');
 const Notification = require('../models/notificationModel'); // Assurez-vous que le chemin est correct
 const nodemailer = require('nodemailer');
-const { getReservationConfirmationTemplate } = require('../utils/reservationMailTemplate');
+const { getReservationConfirmationTemplate, getReservationRejectionTemplate } = require('../utils/reservationMailTemplate');
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60));
@@ -104,12 +104,12 @@ const checkRealSpotStatus = async (spotId, currentStatus) => {
 
 const createReservation = async (reservationData) => {
   try {
-    console.log("Création d'une réservation avec données:", reservationData);
+    console.log("Creating reservation with data:", reservationData);
 
     // Vérifier la disponibilité du parking
     const parking = await Parking.findById(reservationData.parkingId);
     if (!parking) {
-      throw new Error('Parking non trouvé');
+      throw new Error('Parking not found');
     }
 
     const reservation = new Reservation({
@@ -149,36 +149,83 @@ const createReservation = async (reservationData) => {
       status: 'en_attente'
     });
 
-    console.log("✅ Réservation créée avec succès:", reservation);
+    console.log("✅ Reservation created successfully:", reservation);
     return reservation;
   } catch (error) {
-    console.error("❌ Erreur création réservation:", error);
+    console.error("❌ Error creating reservation:", error);
     throw error;
   }
 };
 
-// Fonction pour mettre à jour le statut d'une réservation
+// Function to generate random rejection reasons
+const getRandomRejectionReason = () => {
+  const reasons = [
+    "The parking spot requires urgent maintenance during the requested period.",
+    "Construction work is scheduled in this parking area on these dates.",
+    "This spot is reserved for a special event.",
+    "The specified vehicle is not compatible with this spot's dimensions.",
+    "The owner has specific restrictions for this period.",
+    "This spot is temporarily unavailable for safety reasons.",
+    "The vehicle type is not suitable for this parking spot.",
+    "Modifications are planned for this parking spot.",
+    "The owner has prior commitments for this period.",
+    "The parking area is under renovation to improve safety.",
+    "A technical issue with the access system requires maintenance.",
+    "Adverse weather conditions require temporary closure.",
+    "A major local event requires this spot for emergency services.",
+    "Ground marking work is scheduled in this section.",
+    "A safety inspection is scheduled during this period.",
+    "The surveillance system is being upgraded.",
+    "Environmental control measures are ongoing in this area.",
+    "The spot configuration does not match the specified vehicle type."
+  ];
+  
+  // Sélectionner 3 raisons aléatoires différentes
+  let selectedReasons = [];
+  let availableReasons = [...reasons];
+  
+  for (let i = 0; i < 3; i++) {
+    if (availableReasons.length === 0) break;
+    const randomIndex = Math.floor(Math.random() * availableReasons.length);
+    selectedReasons.push(availableReasons[randomIndex]);
+    availableReasons.splice(randomIndex, 1);
+  }
+  
+  // Formater les raisons avec des puces et retours à la ligne HTML
+  return selectedReasons
+    .map((reason, index) => `${index + 1}. ${reason}`)
+    .join('<br><br>');
+};
+
+// Function to update reservation status
 async function updateReservationStatus(reservationId, newStatus, userId) {
   if (!mongoose.Types.ObjectId.isValid(reservationId)) {
-    throw new Error('ID de réservation invalide');
+    throw new Error('Invalid reservation ID');
   }
 
   const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'canceled'];
   if (!validStatuses.includes(newStatus)) {
-    throw new Error('Statut de réservation invalide');
+    throw new Error('Invalid reservation status');
   }
 
-  const reservation = await Reservation.findById(reservationId);
+  // Récupérer les informations complètes de la réservation
+  const reservation = await Reservation.findById(reservationId)
+    .populate('userId')
+    .populate('parkingId');
+
   if (!reservation) {
-    throw new Error('Réservation non trouvée');
+    throw new Error('Reservation not found');
   }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
 
   if (newStatus === 'accepted') {
-    // Récupérer les informations complètes de la réservation
-    const reservation = await Reservation.findById(reservationId)
-      .populate('userId')
-      .populate('parkingId');
-
     // Rejeter les réservations qui se chevauchent
     const overlappingReservations = await Reservation.find({
       _id: { $ne: reservationId },
@@ -191,9 +238,9 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
           endTime: { $gt: reservation.startTime }
         }
       ]
-    });
+    }).populate('userId').populate('parkingId');
 
-    // Rejeter toutes les réservations qui se chevauchent
+    // Rejeter et envoyer des e-mails pour toutes les réservations qui se chevauchent
     for (const overlap of overlappingReservations) {
       overlap.status = 'rejected';
       await overlap.save();
@@ -206,6 +253,28 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
         },
         { new: true }
       );
+
+      // Send email for each automatically rejected reservation
+      const rejectionMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: overlap.userId.email,
+        subject: '❌ Your Reservation Could Not Be Confirmed',
+        html: getReservationRejectionTemplate(
+          overlap.userId.name,
+          overlap.parkingId.name,
+          overlap.startTime,
+          overlap.endTime,
+          overlap.spotId,
+          "Another reservation has been confirmed for this time slot."
+        )
+      };
+
+      try {
+        await transporter.sendMail(rejectionMailOptions);
+        console.log(`Rejection email sent to ${overlap.userId.email}`);
+      } catch (error) {
+        console.error('Error sending rejection email:', error);
+      }
     }
 
     // Génération du QR code en base64
@@ -223,20 +292,11 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
     // Extraire seulement la partie base64 de l'URL de données
     const base64QR = qrCodeDataUrl.split(',')[1];
 
-    // Configuration du transporteur d'email avec les images intégrées
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
     // Préparer et envoyer l'email avec l'image QR intégrée
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: reservation.userId.email,
-      subject: 'Confirmation de votre réservation de parking',
+      subject: 'Your Parking Reservation is Confirmed',
       html: getReservationConfirmationTemplate(
         reservation.userId.name,
         reservation.parkingId.name,
@@ -255,9 +315,31 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log('Email de confirmation envoyé avec succès');
+      console.log('Confirmation email sent successfully');
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de l\'email:', error);
+      console.error('Error sending confirmation email:', error);
+    }
+  } else if (newStatus === 'rejected') {
+    // Envoyer un e-mail de refus pour la réservation principale
+    const rejectionMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: reservation.userId.email,
+      subject: '❌ Your Reservation Could Not Be Confirmed',
+      html: getReservationRejectionTemplate(
+        reservation.userId.name,
+        reservation.parkingId.name,
+        reservation.startTime,
+        reservation.endTime,
+        reservation.spotId,
+        getRandomRejectionReason()
+      )
+    };
+
+    try {
+      await transporter.sendMail(rejectionMailOptions);
+      console.log(`Rejection email sent to ${reservation.userId.email}`);
+    } catch (error) {
+      console.error('Error sending rejection email:', error);
     }
   }
 
@@ -265,7 +347,7 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
   reservation.status = newStatus;
   await reservation.save();
 
-  // Mettre à jour la notification existante au lieu d'en créer une nouvelle
+  // Mettre à jour la notification existante
   await Notification.findOneAndUpdate(
     { reservationId: reservationId },
     { 
@@ -285,15 +367,15 @@ const checkAvailability = async (req, res) => {
     
     // Validation des paramètres
     if (!isValidObjectId(parkingId)) {
-      return res.status(400).json({ success: false, message: 'ID de parking invalide' });
+      return res.status(400).json({ success: false, message: 'Invalid parking ID' });
     }
     
     if (!spotId || !spotId.startsWith('parking-spot-')) {
-      return res.status(400).json({ success: false, message: 'ID de place invalide' });
+      return res.status(400).json({ success: false, message: 'Invalid spot ID' });
     }
     
     if (!startTime || !endTime) {
-      return res.status(400).json({ success: false, message: 'Les dates de début et de fin sont requises' });
+      return res.status(400).json({ success: false, message: 'Start and end dates are required' });
     }
     
     // Conversion et validation des dates
@@ -301,15 +383,15 @@ const checkAvailability = async (req, res) => {
     const end = new Date(endTime);
     
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ success: false, message: 'Dates invalides' });
+      return res.status(400).json({ success: false, message: 'Invalid dates' });
     }
     
     if (start >= end) {
-      return res.status(400).json({ success: false, message: 'La date de fin doit être après la date de début' });
+      return res.status(400).json({ success: false, message: 'End date must be after start date' });
     }
     
     if (start < new Date()) {
-      return res.status(400).json({ success: false, message: 'La date de début ne peut pas être dans le passé' });
+      return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
     }
     
     // Recherche des réservations existantes qui se chevauchent avec la période demandée
@@ -333,16 +415,16 @@ const checkAvailability = async (req, res) => {
       success: true,
       isAvailable,
       message: isAvailable 
-        ? 'La place est disponible pour cette période' 
-        : 'La place n\'est pas disponible pour cette période',
+        ? 'The spot is available for this period' 
+        : 'The spot is not available for this period',
       overlappingReservations: isAvailable ? [] : overlappingReservations
     });
     
   } catch (error) {
-    console.error('Erreur lors de la vérification de disponibilité:', error);
+    console.error('Error checking availability:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Erreur lors de la vérification de disponibilité',
+      message: 'Error checking availability',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -382,7 +464,7 @@ const getReservationById = async (req, res) => {
       .populate('parkingId')
       .populate('userId');
     if (!reservation) {
-      return res.status(404).json({ message: 'Réservation non trouvée' });
+      return res.status(404).json({ message: 'Reservation not found' });
     }
     res.status(200).json(reservation);
   } catch (error) {
@@ -409,8 +491,8 @@ const deleteReservation = async (req, res) => {
 
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) {
-      console.warn("⚠️ Réservation non trouvée:", req.params.id);
-      return res.status(404).json({ message: 'Réservation non trouvée' });
+      console.warn("⚠️ Reservation not found:", req.params.id);
+      return res.status(404).json({ message: 'Reservation not found' });
     }
 
     // Restaurer la place de parking
@@ -423,19 +505,19 @@ const deleteReservation = async (req, res) => {
         console.log("✅ Parking spots restored. Available spots:", parking.availableSpots);
       }
     } else {
-      console.warn("⚠️ Parking non trouvé pour la réservation:", reservation.parkingId);
+      console.warn("⚠️ Parking not found for reservation:", reservation.parkingId);
     }
 
     await Reservation.findByIdAndDelete(reservation._id); // Use findByIdAndDelete instead of remove
-    console.log("✅ Réservation supprimée avec succès:", reservation._id);
-    res.status(200).json({ message: 'Réservation supprimée' });
+    console.log("✅ Reservation successfully deleted:", reservation._id);
+    res.status(200).json({ message: 'Reservation deleted' });
   } catch (error) {
-    console.error("❌ Erreur suppression réservation:", error);
+    console.error("❌ Error deleting reservation:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// Fonction pour récupérer les réservations des parkings d'un propriétaire
+// Function to get owner's reservations
 const getOwnerReservations = async (ownerId) => {
   try {
     // Trouver tous les parkings appartenant à ce propriétaire
@@ -457,7 +539,7 @@ const getOwnerReservations = async (ownerId) => {
 
     return reservations;
   } catch (error) {
-    console.error("❌ Erreur lors de la récupération des réservations du propriétaire:", error);
+    console.error("❌ Error retrieving owner's reservations:", error);
     throw error;
   }
 };

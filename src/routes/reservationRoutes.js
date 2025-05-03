@@ -211,15 +211,31 @@ router.get('/reservations/by-spot', async (req, res) => {
       return res.status(400).json({ message: "parkingId et spotId sont requis" });
     }
     
-    // Récupérer les réservations pour cette place de parking
+    // Récupérer les réservations pour cette place de parking avec les détails de l'utilisateur
     const reservations = await Reservation.find({
       parkingId,
       spotId,
-      // Optionnel: filtrer par date pour n'obtenir que les réservations actuelles ou à venir
-      endTime: { $gte: new Date() } 
-    }).sort({ startTime: 1 });
+      endTime: { $gte: new Date() }
+    })
+    .populate({
+      path: 'userId',
+      select: 'name email phone', // Sélectionner explicitement les champs de l'utilisateur
+      model: 'User' // Spécifier explicitement le modèle
+    })
+    .populate('parkingId')
+    .sort({ startTime: 1 });
+
+    // Formater les données pour inclure les informations client
+    const formattedReservations = reservations.map(reservation => ({
+      ...reservation.toObject(),
+      client: {
+        name: reservation.userId?.name || 'N/A',
+        phone: reservation.userId?.phone || 'N/A',
+        email: reservation.userId?.email || 'N/A'
+      }
+    }));
     
-    res.json(reservations);
+    res.json(formattedReservations);
   } catch (error) {
     console.error('Erreur lors de la récupération des réservations:', error);
     res.status(500).json({ message: 'Erreur serveur' });

@@ -14,7 +14,7 @@ exports.signup = async (req, res) => {
   try {
     let user = await User.findOne({ email });
     if (user)
-      return res.status(400).json({ message: "Utilisateur déjà existant" });
+      return res.status(400).json({ error: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
@@ -35,13 +35,13 @@ exports.signup = async (req, res) => {
     // Utilisation de la fonction sendEmail pour envoyer le code OTP
     await sendEmail({
       email,
-      subject: "Votre code de vérification",
-      message: `Votre code OTP est : ${otp}`,
+      subject: "Your verification code",
+      message: `Your OTP code is: ${otp}`,
     });
 
-    res.status(200).json({ message: "Utilisateur créé, code OTP envoyé" });
+    res.status(200).json({ message: "User created, OTP code sent" });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -51,12 +51,22 @@ exports.login = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ message: "Utilisateur introuvable" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ error: "Your account has been blocked. Please contact support." });
+    }
+
+    if (!user.isVerified && user.role !== "admin") {
+      return res.status(403).json({ error: "Please verify your email address before logging in" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Mot de passe incorrect" });
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const otp = generateOTP();
     user.otp = otp;
@@ -66,38 +76,38 @@ exports.login = async (req, res) => {
     // Envoi du OTP via email
     await sendEmail({
       email,
-      subject: "Code de connexion",
-      message: `Votre code OTP est : ${otp}`,
+      subject: "Login code",
+      message: `Your OTP code is: ${otp}`,
     });
 
-    res.status(200).json({ message: "Code OTP envoyé" });
+    res.status(200).json({ message: "OTP code sent" });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
 // ➤ Vérification OTP
 exports.verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
-  console.log("Requête reçue avec :", { email, otp });
+  console.log("Request received with:", { email, otp });
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      console.log("Utilisateur introuvable !");
-      return res.status(400).json({ message: "Utilisateur introuvable" });
+      console.log("User not found!");
+      return res.status(404).json({ error: "User not found" });
     }
 
-    console.log("Utilisateur trouvé :", user);
+    console.log("User found:", user);
 
     if (user.otp !== otp) {
-      console.log("OTP invalide :", user.otp, "fourni :", otp);
-      return res.status(400).json({ message: "OTP invalide" });
+      console.log("Invalid OTP:", user.otp, "provided:", otp);
+      return res.status(400).json({ error: "Invalid OTP code" });
     }
 
     if (new Date() > user.otpExpires) {
-      console.log("OTP expiré !");
-      return res.status(400).json({ message: "OTP expiré" });
+      console.log("OTP expired!");
+      return res.status(400).json({ error: "OTP code has expired" });
     }
 
     user.otp = null;
@@ -105,9 +115,9 @@ exports.verifyOTP = async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
-    res.status(200).json({ message: "Authentification réussie", token });
+    res.status(200).json({ message: "Authentication successful", token });
   } catch (error) {
-    console.error("Erreur serveur :", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
