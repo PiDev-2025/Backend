@@ -385,11 +385,11 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 }
 const updateReservationStatusPayment = async (req, res) => {
   try {
-    const { paymentStatus } = req.body;
+    const { status,paymentStatus } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       req.params.id,
-      { paymentStatus },
+      { status,paymentStatus },
       { new: true }
     );
 
@@ -628,7 +628,8 @@ const getReservationsByUserId = async (userId) => {
 
     return reservations;
   } catch (error) {
-    console.error("❌ Error fetching user reservations:", error);
+    console.error("❌ Error fetching user reservations:", error);}
+};
 
 const getReservationsByMatricule = async (matricule) => {
   try {
@@ -666,11 +667,8 @@ module.exports = {
   checkRealSpotStatus,
   getUserByReservation,
   getOwnerReservations,
-
   getReservationsByUserId,
   updateReservationStatusPayment,
-};
-
   getReservationsByMatricule
 };
 
