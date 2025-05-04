@@ -5,7 +5,18 @@ const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const Parking = require('../models/parkingModel');
 const Reservation = require('../models/reservationModel');
 const User = require('../models/userModel');
-const { createReservation, updateReservationStatus, checkAvailability,getUserByReservation,getReservationsByUserId,  calculatePrice, getReservations, getReservationById, updateReservation, deleteReservation, getOwnerReservations, updateReservationStatusPayment } = require('../services/reservationService');
+const { createReservation,
+  updateReservationStatus,
+  checkAvailability,
+  getUserByReservation,
+  getReservationsByUserId,
+  calculatePrice,
+  getReservations,
+  getReservationById,
+  updateReservation,
+  deleteReservation,
+  getOwnerReservations,
+  updateReservationStatusPayment } = require('../services/reservationService');
 
 // Création de réservation
 router.post('/reservations', verifyToken, async (req, res) => {

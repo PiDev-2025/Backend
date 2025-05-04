@@ -1,14 +1,12 @@
 const Reservation = require("../models/reservationModel");
-
 const Parking = require('../models/parkingModel');
-const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
+const Notification = require('../models/notificationModel');
+const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
 const { isValidObjectId } = require('mongoose');
-const Notification = require('../models/notificationModel'); // Assurez-vous que le chemin est correct
-const nodemailer = require('nodemailer');
 const { getReservationConfirmationTemplate, getReservationRejectionTemplate } = require('../utils/reservationMailTemplate');
-
+const notificationService = require('../controllers/notificationController'); // Assurez-vous que le chemin est correct
 
 const calculatePrice = (startTime, endTime, pricing) => {
   const hours = Math.ceil(
@@ -136,7 +134,7 @@ const createReservation = async (reservationData) => {
       vehicleType: reservationData.vehicleType,
       totalPrice: reservationData.totalPrice,
 
-    
+
 
       matricule: reservationData.matricule,
       paymentMethod: reservationData.paymentMethod || 'cash',
@@ -199,18 +197,18 @@ const getRandomRejectionReason = () => {
     "Environmental control measures are ongoing in this area.",
     "The spot configuration does not match the specified vehicle type."
   ];
-  
+
   // Sélectionner 3 raisons aléatoires différentes
   let selectedReasons = [];
   let availableReasons = [...reasons];
-  
+
   for (let i = 0; i < 3; i++) {
     if (availableReasons.length === 0) break;
     const randomIndex = Math.floor(Math.random() * availableReasons.length);
     selectedReasons.push(availableReasons[randomIndex]);
     availableReasons.splice(randomIndex, 1);
   }
-  
+
   // Formater les raisons avec des puces et retours à la ligne HTML
   return selectedReasons
     .map((reason, index) => `${index + 1}. ${reason}`)
@@ -267,10 +265,10 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
     for (const overlap of overlappingReservations) {
       overlap.status = 'rejected';
       await overlap.save();
-      
+
       await Notification.findOneAndUpdate(
         { reservationId: overlap._id },
-        { 
+        {
           status: 'refusée',
           isRead: false
         },
@@ -374,7 +372,7 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
   // Mettre à jour la notification existante
   await Notification.findOneAndUpdate(
     { reservationId: reservationId },
-    { 
+    {
       status: newStatus === 'accepted' ? 'acceptée' : 'refusée',
       isRead: false
     },
@@ -385,20 +383,81 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 }
 const updateReservationStatusPayment = async (req, res) => {
   try {
-    const { paymentStatus } = req.body;
+    const { status, paymentStatus } = req.body;
+    
+    // Trouver et mettre à jour la réservation
+    const reservation = await Reservation.findById(req.params.id)
+      .populate('userId')
+      .populate('parkingId');
 
-    const updatedReservation = await Reservation.findByIdAndUpdate(
-      req.params.id,
-      { paymentStatus },
-      { new: true }
-    );
-
-    if (!updatedReservation) {
+    if (!reservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
 
-    res.status(200).json(updatedReservation);
+    // Mettre à jour les statuts
+    reservation.status = "accepted";
+    reservation.paymentStatus = "completed";
+    await reservation.save();
+
+    // Mettre à jour la notification
+    await Notification.findOneAndUpdate(
+      { reservationId: req.params.id },
+      {
+        status: "acceptée",
+        isRead: false
+      },
+      { new: true }
+    );
+
+    // Configuration email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    // Générer QR code
+    const qrData = JSON.stringify({
+      reservationId: reservation._id,
+      parkingName: reservation.parkingId.name,
+      driverName: reservation.userId.name,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      totalPrice: reservation.totalPrice,
+      vehicleType: reservation.vehicleType
+    });
+
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData);
+    const base64QR = qrCodeDataUrl.split(',')[1];
+
+    // Envoyer l'email de confirmation
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: reservation.userId.email,
+      subject: 'Your Parking Reservation is Confirmed',
+      html: getReservationConfirmationTemplate(
+        reservation.userId.name,
+        reservation.parkingId.name,
+        'cid:qrcode',
+        reservation.startTime,
+        reservation.endTime,
+        reservation.spotId
+      ),
+      attachments: [{
+        filename: 'qrcode.png',
+        content: base64QR,
+        encoding: 'base64',
+        cid: 'qrcode'
+      }]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json(reservation);
   } catch (error) {
+    console.error("Error updating reservation payment status:", error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -413,7 +472,7 @@ const checkAvailability = async (req, res) => {
 
       return res.status(400).json({ success: false, message: 'Invalid parking ID' });
     }
-    
+
     if (!spotId || !spotId.startsWith('parking-spot-')) {
       return res.status(400).json({ success: false, message: 'Invalid spot ID' });
 
@@ -468,8 +527,8 @@ const checkAvailability = async (req, res) => {
       success: true,
       isAvailable,
 
-      message: isAvailable 
-        ? 'The spot is available for this period' 
+      message: isAvailable
+        ? 'The spot is available for this period'
         : 'The spot is not available for this period',
       overlappingReservations: isAvailable ? [] : overlappingReservations
 
@@ -477,8 +536,8 @@ const checkAvailability = async (req, res) => {
   } catch (error) {
 
     console.error('Error checking availability:', error);
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       message: 'Error checking availability',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
 
@@ -629,28 +688,30 @@ const getReservationsByUserId = async (userId) => {
     return reservations;
   } catch (error) {
     console.error("❌ Error fetching user reservations:", error);
+  }
 
-const getReservationsByMatricule = async (matricule) => {
-  try {
-    // Rechercher toutes les réservations avec cette matricule
-    const reservations = await Reservation.find({ 
-      matricule: matricule,
-      status: { $in: ['active', 'pending'] }
-    })
-    .populate('parkingId', 'name location pricing') // Informations sur le parking
-    .populate('userId', 'name email phone') // Informations sur l'utilisateur
-    .sort({ createdAt: -1 });
+  const getReservationsByMatricule = async (matricule) => {
+    try {
+      // Rechercher toutes les réservations avec cette matricule
+      const reservations = await Reservation.find({
+        matricule: matricule,
+        status: { $in: ['active', 'pending'] }
+      })
+        .populate('parkingId', 'name location pricing') // Informations sur le parking
+        .populate('userId', 'name email phone') // Informations sur l'utilisateur
+        .sort({ createdAt: -1 });
 
-    return {
-      success: true,
-      count: reservations.length,
-      reservations: reservations,
-      matricule: matricule
-    };
-  } catch (error) {
-    console.error('❌ Error fetching reservations by matricule:', error);
+      return {
+        success: true,
+        count: reservations.length,
+        reservations: reservations,
+        matricule: matricule
+      };
+    } catch (error) {
+      console.error('❌ Error fetching reservations by matricule:', error);
 
-    throw error;
+      throw error;
+    }
   }
 };
 
@@ -666,11 +727,6 @@ module.exports = {
   checkRealSpotStatus,
   getUserByReservation,
   getOwnerReservations,
-
   getReservationsByUserId,
-  updateReservationStatusPayment,
+  updateReservationStatusPayment
 };
-
-  getReservationsByMatricule
-};
-

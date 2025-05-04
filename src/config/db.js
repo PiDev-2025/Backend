@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect('mongodb://127.0.0.1:27017/ParkiniDB', {
+    const conn = await mongoose.connect('mongodb://127.0.0.1:27017/parkiniDB', {
       // Removing deprecated options
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
