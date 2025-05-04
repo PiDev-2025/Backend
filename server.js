@@ -159,7 +159,7 @@ const io = new Server(server, {
 
 // Socket.IO Connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  //console.log('User connected:', socket.id);
 
   // Authenticate socket connection using token
   socket.on('authenticate', async (token) => {

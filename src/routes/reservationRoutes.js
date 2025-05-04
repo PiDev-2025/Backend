@@ -188,7 +188,26 @@ router.get('/owner-reservations', verifyToken, async (req, res) => {
     });
   }
 });
+router.get('/reservation/:id', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'ID de réservation invalide' });
+    }
 
+    const reservation = await Reservation.findById(req.params.id)
+      .populate('parkingId')
+      .populate('userId', 'name email');
+
+    if (!reservation) {
+      return res.status(404).json({ message: 'Réservation non trouvée' });
+    }
+
+    res.status(200).json(reservation);
+  } catch (error) {
+    console.error("❌ Erreur récupération réservation:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
 // Route pour qu'un propriétaire accepte ou rejette une réservation
 router.put('/owner-reservations/:id/status', verifyToken, async (req, res) => {
   try {
