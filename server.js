@@ -29,6 +29,7 @@ const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const { Server } = require("socket.io");
 const session = require("express-session");
+const MongoStore = require('connect-mongo'); // Import connect-mongo
 require("dotenv").config();
 
 // Définition explicite d'une clé secrète de session pour éviter l'erreur "secret option required for sessions"
@@ -72,6 +73,11 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({ // Use MongoStore
+      mongoUrl: process.env.MONGO_URI,
+      collectionName: 'sessions', // Optional: specify collection name
+      ttl: 14 * 24 * 60 * 60 // Optional: session TTL in seconds (e.g., 14 days)
+    }),
     cookie: { 
       secure: process.env.NODE_ENV === 'production', // En production, activer HTTPS uniquement
       httpOnly: true, // CORRECTION: Activer httpOnly pour empêcher l'accès via JavaScript côté client
@@ -159,7 +165,7 @@ const io = new Server(server, {
 
 // Socket.IO Connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  //console.log('User connected:', socket.id);
 
   // Authenticate socket connection using token
   socket.on('authenticate', async (token) => {

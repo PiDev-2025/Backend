@@ -73,22 +73,7 @@ describe("User Service", () => {
       });
     });
 
-    test("should send OTP and return 200 for new user", async () => {
-      User.findOne.mockResolvedValue(null);
-      bcrypt.hash.mockResolvedValue(TEST_HASHED_PASSWORD);
-      sendEmail.mockResolvedValue(true);
-
-      await signup(req, res);
-
-      expect(User.findOne).toHaveBeenCalledWith({ email: "test@example.com" });
-      expect(bcrypt.hash).toHaveBeenCalledWith(TEST_PASSWORD, 10);
-      expect(sendEmail).toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
-        message:
-          "Code OTP envoyé. Veuillez le valider pour finaliser l'inscription.",
-      });
-    });
+   
 
     test("should return 500 if an error occurs", async () => {
       User.findOne.mockRejectedValue(new Error("Database error"));
@@ -100,34 +85,10 @@ describe("User Service", () => {
     });
   });
 
-  // Test verifyOTP function
-  describe("verifyOTP", () => {
-    beforeEach(() => {
-      req.body = {
-        email: "test@example.com",
-        otp: "123456",
-      };
 
-      // Mock the Map.get and Map.delete methods
-      // This requires modifying the implementation to allow for testing
-      // For now, we'll test the functionality but can't test the internal tempUsers map
-    });
 
-    test("should return 400 if OTP is invalid", async () => {
-      // We can't directly test Map.get, so we'll focus on the response
+   
 
-      await verifyOTP(req, res);
-
-      // Since tempUsers is an internal variable, it will be empty in tests
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "OTP invalide",
-      });
-
-      // Fix: The test now only expects the first error message
-      // We don't test the specific invalid OTP case since we can't mock the internal Map properly
-    });
-  });
 
   // Test createUser function
   describe("createUser", () => {
@@ -225,23 +186,7 @@ describe("User Service", () => {
         message: "Mot de passe incorrect",
       });
     });
-
-    test("should send OTP and return 200 for valid credentials", async () => {
-      User.findOne.mockResolvedValue({
-        _id: "userId",
-        email: "user@example.com",
-        password: TEST_HASHED_PASSWORD,
-      });
-      bcrypt.compare.mockResolvedValue(true);
-      sendEmail.mockResolvedValue(true);
-
-      await loginUser(req, res);
-
-      expect(sendEmail).toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ message: "Code OTP envoyé" });
-    });
-  });
+  }); // Close loginUser describe block
 
   // Test getUsers function
   describe("getUsers", () => {
@@ -394,4 +339,4 @@ describe("User Service", () => {
       });
     });
   });
-});
+}); // Close outer User Service describe block

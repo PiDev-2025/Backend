@@ -38,6 +38,58 @@ router.get("/claims/:id", getUserFromToken, getClaimById);
 router.put("/claims/:id", getUserFromToken, updateClaim);
 router.delete("/claims/:id", getUserFromToken, deleteClaim);
 
+// Route to get claims for the connected driver
+router.get("/driver-claims", getUserFromToken, async (req, res) => {
+    try {
+        // Check if user is a driver
+        if (req.user.role !== "Driver") {
+            return res.status(403).json({ 
+                success: false,
+                message: "Access denied. Must be a driver." 
+            });
+        }
+
+        // Find claims where userId matches the current user's ID
+        const claims = await Claim.find({ userId: req.user.id })
+            .populate('userId', 'name email')
+            .populate({
+                path: 'reservationId',
+                // Don't fail if no reservation found
+                options: { retainNullValues: true },
+                populate: {
+                    path: 'parkingId',
+                    select: 'name location'
+                }
+            })
+            .sort({ createdAt: -1 });
+
+        // Format response and handle null reservation IDs
+        const formattedClaims = claims.map(claim => {
+            const claimObj = claim.toObject();
+            
+            // If reservationId is null or invalid, set it to null instead of failing
+            if (!claim.reservationId) {
+                claimObj.reservationId = null;
+            }
+            
+            return claimObj;
+        });
+
+        res.status(200).json({
+            success: true,
+            count: claims.length,
+            claims: formattedClaims
+        });
+    } catch (error) {
+        console.error("Error fetching driver claims:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch driver claims",
+            error: error.message
+        });
+    }
+});
+
 // Route pour obtenir les réclamations par numéro de plaque
 router.get("/claims/plate/:plateNumber", getUserFromToken, getClaimsByPlateNumber);
 
@@ -86,7 +138,7 @@ router.get("/owner-claims", getUserFromToken, async (req, res) => {
         });
     }
 });
-
+router.get("/All_claims", getClaims);
 // Ajouter cette nouvelle route
 router.put("/owner-claims/:claimId/status", getUserFromToken, async (req, res) => {
     try {

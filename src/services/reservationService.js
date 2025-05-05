@@ -628,9 +628,10 @@ const getReservationsByUserId = async (userId) => {
 
     return reservations;
   } catch (error) {
-    console.error("❌ Error fetching user reservations:", error);}
-};
-
+    console.error("❌ Error fetching user reservations:", error);
+    throw error;
+  }
+}; // Added missing closing brace and semicolon
 const getReservationsByMatricule = async (matricule) => {
   try {
     // Rechercher toutes les réservations avec cette matricule
@@ -671,4 +672,3 @@ module.exports = {
   updateReservationStatusPayment,
   getReservationsByMatricule
 };
-
