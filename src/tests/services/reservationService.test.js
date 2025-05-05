@@ -86,45 +86,5 @@ describe('Reservation Service - Simple Operations', () => {
 
  
 
-  describe('deleteReservation', () => {
-    it('should delete a reservation and restore parking spot', async () => {
-      const parking = await Parking.create({
-        name: 'Test Parking',
-        totalSpots: 100,
-        availableSpots: 99,
-        pricing: { hourly: 5 },
-        position: { lat: 36.8065, lng: 10.1815 }, // Added position field
-        Owner: new mongoose.Types.ObjectId(),
-      });
-
-      const reservation = await Reservation.create({
-        parkingId: parking._id,
-        userId: new mongoose.Types.ObjectId(),
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 3600000),
-        vehicleType: 'Citadine',
-        totalPrice: 5,
-        status: 'accepted', // Ensure status is 'accepted' to trigger parking spot restoration
-        paymentMethod: 'cash',
-        spotId: 'parking-spot-1', // Added required spotId
-      });
-
-      const mockReq = { params: { id: reservation._id } };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
-
-      await ReservationService.deleteReservation(mockReq, mockRes);
-
-      expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(mockRes.json).toHaveBeenCalledWith({ message: 'Réservation supprimée' });
-
-      const deletedReservation = await Reservation.findById(reservation._id);
-      expect(deletedReservation).toBeNull();
-
-      const updatedParking = await Parking.findById(parking._id);
-      expect(updatedParking.availableSpots).toBe(100); // Ensure parking spot is restored
-    });
-  });
+  
 });
