@@ -1,5 +1,6 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Reservation = require("../models/reservationModel");
+const Subscription = require("../models/subscriptionModel");
 const axios = require("axios");
 
 const createPaymentIntent = async (reservationId) => {
@@ -40,7 +41,8 @@ const confirmPayment = async (reservationId, paymentIntentId) => {
 
     if (paymentIntent.status === "succeeded") {
       await Reservation.findByIdAndUpdate(reservationId, {
-        paymentStatus: "completed"
+        status: "accepted",
+        paymentStatus: "completed",
       });
       return { success: true };
     } else {
@@ -53,6 +55,59 @@ const confirmPayment = async (reservationId, paymentIntentId) => {
     throw error;
   }
 };
+
+const createSubscriptionPaymentIntent = async (subscriptionId) => {
+  try {
+    const subscription = await Subscription.findById(subscriptionId);
+    if (!subscription) {
+      throw new Error("Subscription not found");
+    }
+
+    // Convert price to cents for Stripe
+    const amount = Math.round(subscription.price * 100);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: "eur",
+      metadata: {
+        subscriptionId: subscriptionId,
+        userId: subscription.userId.toString(),
+        parkingId: subscription.parkingId.toString(),
+        type: "subscription",
+      },
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      amount: amount,
+    };
+  } catch (error) {
+    console.error("Subscription payment intent creation error:", error);
+    throw error;
+  }
+};
+
+const confirmSubscriptionPayment = async (subscriptionId, paymentIntentId) => {
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    console.log("Subscription Payment Intent Status:", paymentIntent.status);
+
+    if (paymentIntent.status === "succeeded") {
+      await Subscription.findByIdAndUpdate(subscriptionId, {
+        status: "Active",
+      });
+      return { success: true };
+    } else {
+      throw new Error(
+        `Subscription payment not successful. Status: ${paymentIntent.status}`
+      );
+    }
+  } catch (error) {
+    console.error("Subscription payment confirmation error:", error);
+    throw error;
+  }
+};
+
 async function generatePayment(amount, trackingId) {
   const url = "https://developers.flouci.com/api/generate_payment";
 
@@ -102,4 +157,6 @@ module.exports = {
   confirmPayment,
   generatePayment,
   Verify,
+  createSubscriptionPaymentIntent,
+  confirmSubscriptionPayment,
 };

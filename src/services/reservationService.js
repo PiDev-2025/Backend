@@ -385,11 +385,11 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 }
 const updateReservationStatusPayment = async (req, res) => {
   try {
-    const { paymentStatus } = req.body;
+    const { status,paymentStatus } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       req.params.id,
-      { paymentStatus },
+      { status,paymentStatus },
       { new: true }
     );
 
@@ -632,7 +632,6 @@ const getReservationsByUserId = async (userId) => {
     throw error;
   }
 }; // Added missing closing brace and semicolon
-
 const getReservationsByMatricule = async (matricule) => {
   try {
     // Rechercher toutes les réservations avec cette matricule
