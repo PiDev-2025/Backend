@@ -17,59 +17,93 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-// Health check endpoint to verify service is operational
+// Health check endpoint to verify Flask API is running
 router.get('/health', async (req, res) => {
     try {
-        const health = await plateDetectionService.verifyPythonInstallation();
-        // Try to run a simple test of the Python script
         const diagnostics = await plateDetectionService.runDiagnostics();
-        res.json({
+        return res.json({
             status: 'ok',
-            message: 'Plate detection service is operational',
-            diagnostics
+            message: 'Plate detection service is available',
+            flaskApi: diagnostics
         });
     } catch (error) {
-        res.status(503).json({
+        return res.status(500).json({
             status: 'error',
-            message: 'Plate detection service is not operational',
+            message: 'Plate detection service error',
             error: error.message
         });
     }
 });
 
+// Endpoint that handles both direct image URLs and file uploads
 router.post('/detect', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'No image file provided' });
-        }
+        let imageUrl;
 
-        // Use the Cloudinary URL
-        const result = await plateDetectionService.detectPlate(req.file.path);
-
-        // Handle the case where no plate was detected
-        if (result.noPlateDetected) {
-            return res.json({
-                success: false,
-                plateText: null,
-                message: 'No license plate detected in the image',
-                imageUrl: req.file.path
+        // Check if we have a file upload
+        if (req.file && req.file.path) {
+            imageUrl = req.file.path;
+        } 
+        // Check if an image URL was provided in the request body
+        else if (req.body && req.body.imageUrl) {
+            imageUrl = req.body.imageUrl;
+        } else {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No image provided. Upload a file or provide an imageUrl in the request body.' 
             });
         }
 
-        res.json({
+        console.log(`Processing plate detection for image: ${imageUrl}`);
+        const result = await plateDetectionService.detectPlate(imageUrl);
+        
+        return res.json({
             success: result.success,
             plateText: result.plateText,
             confidence: result.confidence || 0,
-            details: result.fullOutput,
-            imageUrl: req.file.path // Cloudinary URL
+            noPlateDetected: result.noPlateDetected || false,
+            imageUrl: imageUrl,
+            details: result.fullOutput || null
         });
-
     } catch (error) {
-        console.error('❌ Plate detection error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error processing image',
-            error: error.message
+        console.error('Plate detection API error:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Failed to process plate detection',
+            message: error.message
+        });
+    }
+});
+
+// Alternative endpoint for direct URL without file upload
+router.post('/detect-url', async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        
+        if (!imageUrl) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Image URL is required' 
+            });
+        }
+
+        console.log(`Processing plate detection for image URL: ${imageUrl}`);
+        const result = await plateDetectionService.detectPlate(imageUrl);
+        
+        return res.json({
+            success: result.success,
+            plateText: result.plateText,
+            confidence: result.confidence || 0,
+            noPlateDetected: result.noPlateDetected || false,
+            imageUrl: imageUrl,
+            details: result.fullOutput || null
+        });
+    } catch (error) {
+        console.error('Plate detection API error:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Failed to process plate detection',
+            message: error.message
         });
     }
 });

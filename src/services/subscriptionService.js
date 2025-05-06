@@ -3,13 +3,14 @@ const Subscription = require("../models/subscriptionModel");
 // services/subscriptionService.js
 async function getSubscriptionsByUserId(userId) {
   try {
-    const subscriptions = await Subscription.find({ userId }).populate('parkingId'); 
+    const subscriptions = await Subscription.find({ userId }).populate(
+      "parkingId"
+    );
     return subscriptions;
   } catch (error) {
     throw new Error(error.message);
   }
 }
-
 
 // Create a new subscription
 const createSubscription = async (req, res) => {
@@ -70,11 +71,50 @@ const updateSubscription = async (req, res) => {
 // Delete a subscription
 const deleteSubscription = async (req, res) => {
   try {
-    const deletedSubscription = await Subscription.findByIdAndDelete(req.params.id);
+    const deletedSubscription = await Subscription.findByIdAndDelete(
+      req.params.id
+    );
     if (!deletedSubscription) {
       return res.status(404).json({ message: "Subscription not found" });
     }
     res.status(200).json({ message: "Subscription deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete all canceled subscriptions for a user
+const deleteCanceledSubscriptionsByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await Subscription.deleteMany({
+      userId: userId,
+      status: "Cancelled",
+    });
+
+    res.status(200).json({
+      message: `Deleted ${result.deletedCount} canceled subscriptions`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get active subscription status for a user
+const getActiveSubscriptionStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const activeSubscription = await Subscription.findOne({
+      userId: userId,
+      status: "Active",
+      endDate: { $gt: new Date() }, // Check if subscription hasn't expired
+    });
+
+    res.status(200).json({
+      hasActiveSubscription: !!activeSubscription,
+      subscription: activeSubscription,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -87,4 +127,6 @@ module.exports = {
   updateSubscription,
   deleteSubscription,
   getSubscriptionsByUserId,
+  deleteCanceledSubscriptionsByUserId,
+  getActiveSubscriptionStatus,
 };

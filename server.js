@@ -20,8 +20,10 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
+// Use process.env.PORT provided by Heroku or default to 3001
 const port = process.env.PORT || 3001;
 const connectDB = require("./src/config/db");
+const { MONGO_ATLAS_URI } = require("./src/config/db");
 const cors = require("cors");
 const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
@@ -40,7 +42,7 @@ connectDB();
 // console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 // CORS Configuration
-const allowedOrigins = ["http://localhost:3000", "http://localhost:5173", 
+const allowedOrigins = ["http://localhost:3000", "https://front-end-front-office.vercel.app", "https:dashboard-admin-parkiini.vercel.app", "http://localhost:5173", 
   // Ajouter ici vos domaines de production avec HTTPS
   "https://yourproductiondomain.com"
 ];
@@ -73,10 +75,10 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ // Use MongoStore
-      mongoUrl: process.env.MONGO_URI,
-      collectionName: 'sessions', // Optional: specify collection name
-      ttl: 14 * 24 * 60 * 60 // Optional: session TTL in seconds (e.g., 14 days)
+    store: MongoStore.create({
+      mongoUrl: MONGO_ATLAS_URI, // Use Atlas URI directly
+      collectionName: 'sessions',
+      ttl: 14 * 24 * 60 * 60
     }),
     cookie: { 
       secure: process.env.NODE_ENV === 'production', // En production, activer HTTPS uniquement
@@ -215,6 +217,7 @@ app.get("/", (req, res) => {
 });
 
 // Start Server
+// Use the 'port' variable defined above
 server.listen(port, () => {
   console.log(`Server started on port ${port}!`);
 });
