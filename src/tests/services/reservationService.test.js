@@ -80,7 +80,8 @@ describe('Reservation Service - Simple Operations', () => {
         spotId: 'parking-spot-1', // Added required spotId
       };
 
-      await expect(ReservationService.createReservation(reservationData)).rejects.toThrow('Parking non trouvé');
+        await expect(ReservationService.createReservation(reservationData)).rejects.toThrow('Parking not found');
+
     });
   });
 
