@@ -39,28 +39,35 @@ const SESSION_SECRET = process.env.SESSION_SECRET || "parkini_secure_session_key
 
 connectDB();
 
-
 // CORS Configuration
-const allowedOrigins = [
+const defaultAllowedOrigins = [
   "http://localhost:3000", 
   "https://front-end-front-office.vercel.app", 
   "https://dashboard-admin-parkiini.vercel.app",
   "http://localhost:5173",
- 
 ];
+
+// Parse environment variable if it exists, otherwise use default origins
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(',')
+  : defaultAllowedOrigins;
+
+console.log("Allowed CORS origins:", allowedOrigins);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log(`CORS blocked origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "PUT","PATCH" , "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-  maxAge: 86400, // 24 heures de mise en cache des préflight requests
+  maxAge: 86400, // 24 hours of caching preflight requests
 };
 
 // Apply CORS Middleware
