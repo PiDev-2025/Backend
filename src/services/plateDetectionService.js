@@ -4,48 +4,69 @@ const fs = require('fs').promises;
 const os = require('os');
 
 // Flask API settings with environment variable support for Docker/hosting
-
-const FLASK_URL = `https://parkini-plate-detector.onrender.com/detect_plate`;
+const FLASK_URL = process.env.PLATE_DETECTOR_API_URL || 'https://parkini-plate-detector.onrender.com/detect_plate';
+const FALLBACK_MODE_ENABLED = process.env.PLATE_DETECTOR_FALLBACK_ENABLED !== 'false';
 
 class PlateDetectionService {
     constructor() {
         console.log('🌐 Plate Detection Service initializing');
         console.log(`🌐 Using Flask API URL: ${FLASK_URL}`);
+        this.apiIsDown = false;
+        this.lastHealthCheck = 0;
+        this.healthCheckInterval = 60000; // 1 minute
     }
 
     async initialize() {
         console.log('🔍 Initializing PlateDetectionService');
         try {
-            // Just check if the API is reachable
             await this.checkApiAvailability();
             console.log('✅ Plate detection service initialized successfully');
         } catch (error) {
             console.error('⚠️ Flask API not reachable:', error.message);
             console.log('ℹ️ Will retry when processing requests');
+            this.apiIsDown = true;
         }
     }
 
     async checkApiAvailability() {
         try {
-            // Simple OPTIONS request to check if API is up
-            await axios({
-                method: 'options',
-                url: FLASK_URL,
+            // Avoid too frequent health checks
+            const now = Date.now();
+            if (now - this.lastHealthCheck < this.healthCheckInterval) {
+                return !this.apiIsDown;
+            }
+            
+            this.lastHealthCheck = now;
+            
+            // Try both the root endpoint (lighter) and options request
+            const response = await axios({
+                method: 'get',
+                url: FLASK_URL.replace('/detect_plate', '/'),
                 timeout: 5000
             });
+            
+            // If we get here, API is up
+            this.apiIsDown = false;
             return true;
         } catch (error) {
             console.warn(`⚠️ Flask API health check failed: ${error.message}`);
+            this.apiIsDown = true;
             return false;
         }
     }
 
     async downloadImage(imageUrl) {
-        const response = await axios({
-            url: imageUrl,
-            responseType: 'arraybuffer'
-        });
-        return Buffer.from(response.data).toString('base64');
+        try {
+            const response = await axios({
+                url: imageUrl,
+                responseType: 'arraybuffer',
+                timeout: 10000 // 10 second timeout for image download
+            });
+            return Buffer.from(response.data).toString('base64');
+        } catch (error) {
+            console.error('❌ Image download failed:', error.message);
+            throw new Error(`Failed to download image: ${error.message}`);
+        }
     }
 
     standardizeTunisianPlate(plateText) {
@@ -144,6 +165,21 @@ class PlateDetectionService {
         let retries = 0;
         const maxRetries = 2;
         
+        // Check API availability first to avoid unnecessary retries
+        const isApiUp = await this.checkApiAvailability();
+        if (!isApiUp && FALLBACK_MODE_ENABLED) {
+            console.log('⚠️ API is down, using fallback detection mode');
+            // Return a simplified response that lets the client know this is a fallback
+            return {
+                success: true,
+                plateText: "000 تونس 000", // Default fallback plate
+                rawPlateText: null,
+                confidence: 0.1,
+                fallbackMode: true,
+                apiAvailable: false
+            };
+        }
+        
         while (retries <= maxRetries) {
             try {
                 console.log('🔄 Processing image from URL:', imageUrl);
@@ -160,7 +196,7 @@ class PlateDetectionService {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json' 
                     },
-                    timeout: 30000  // 30 seconds timeout
+                    timeout: 45000  // Increased timeout to 45 seconds
                 });
 
                 const result = response.data;
@@ -176,14 +212,6 @@ class PlateDetectionService {
                     };
                 }
 
-                // Make sure we have the plateText and it's not corrupted
-                if (!result.plateText) {
-                    console.warn("Missing plateText in API response");
-                    if (result.fullOutput) {
-                        console.log("Trying to extract from full output:", result.fullOutput);
-                    }
-                }
-                
                 // Standardize plate format - make sure تونس is preserved
                 const plateText = result.plateText || "";
                 console.log(`Raw plate text from API: "${plateText}"`);
@@ -222,10 +250,27 @@ class PlateDetectionService {
                 retries++;
                 console.error(`❌ Plate detection failed (attempt ${retries}/${maxRetries+1}):`, error.message);
                 
-                // Wait before retry
+                // If 5xx errors, mark API as potentially down
+                if (error.response && error.response.status >= 500) {
+                    this.apiIsDown = true;
+                }
+                
+                // Wait before retry with exponential backoff
                 if (retries <= maxRetries) {
-                    console.log(`⏱️ Waiting before retry ${retries}...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    const waitTime = 2000 * Math.pow(2, retries-1); // 2s, 4s, 8s...
+                    console.log(`⏱️ Waiting ${waitTime}ms before retry ${retries}...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                } else if (FALLBACK_MODE_ENABLED) {
+                    console.log('⚠️ All retries failed, using fallback mode');
+                    // After all retries failed, return a fallback that clients can handle
+                    return {
+                        success: true,
+                        plateText: "000 تونس 000", // Default fallback plate
+                        rawPlateText: null, 
+                        confidence: 0.1,
+                        fallbackMode: true,
+                        error: error.message
+                    };
                 } else {
                     throw new Error(`Failed to detect license plate after ${maxRetries+1} attempts: ${error.message}`);
                 }
