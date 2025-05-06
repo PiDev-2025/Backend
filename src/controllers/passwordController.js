@@ -17,7 +17,7 @@ exports.sendResetPasswordEmail = async (req, res) => {
     await user.save();
 
     // Force the frontend URL without using any variables
-    const resetUrl = "http://localhost:3000/reset-password/" + token;
+    const resetUrl = "https://front-end-front-office.vercel.app/reset-password/" + token;
 
     const message = `
 Hello,

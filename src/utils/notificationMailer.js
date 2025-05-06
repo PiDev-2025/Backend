@@ -2,9 +2,10 @@ const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
+    secure: true, // Enforce SSL/TLS for secure connection
     auth: {
-        user: "Marwaniwael88@gmail.com",
-        pass: "vhgt kjkc gkbi rbkr",
+        user: "artyvenci@gmail.com",
+        pass: "nbov fksh cnbw bckh",
     },
 });
 
@@ -123,7 +124,7 @@ const sendClaimStatusEmail = async ({ email, status, userName, claimId, parkingN
     `;
 
     await transporter.sendMail({
-        from: "Marwaniwael88@gmail.com",
+        from: "artyvenci@gmail.com",
         to: email,
         subject: statusInfo.title,
         html: htmlContent

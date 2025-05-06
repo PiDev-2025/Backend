@@ -5,14 +5,14 @@ const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "Marwaniwael88@gmail.com", // Your email address
-      pass: "vhgt kjkc gkbi rbkr", // Your password or app password
+      user: "artyvenci@gmail.com", // Your email address
+      pass: "nbov fksh cnbw bckh", // Your password or app password
     },
   });
 
   // Define the email content with HTML
   const mailOptions = {
-    from: "Marwaniwael88@gmail.com", // Sender address
+    from: "artyvenci@gmail.com", // Sender address
     to: options.email, // Recipient address
     subject: options.subject || "Welcome to Parkini", // Email subject
     html: `
@@ -273,7 +273,7 @@ const sendEmail = async (options) => {
 };
 
 const getSignUpVerificationTemplate = (email, token) => {
-  const verificationLink = `http://localhost:3000/confirm/${token}`;
+  const verificationLink = `https://front-end-front-office.vercel.app/confirm/${token}`;
 
   return {
     subject: "✨ Welcome to Parkini - Please Verify Your Email",

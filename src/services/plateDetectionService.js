@@ -4,9 +4,8 @@ const fs = require('fs').promises;
 const os = require('os');
 
 // Flask API settings with environment variable support for Docker/hosting
-const FLASK_HOST = process.env.FLASK_HOST || 'localhost';
-const FLASK_PORT = process.env.FLASK_PORT || 5000;
-const FLASK_URL = process.env.FLASK_API_URL || `http://${FLASK_HOST}:${FLASK_PORT}/detect_plate`;
+
+const FLASK_URL = `https://parkini-plate-detector.onrender.com/detect_plate`;
 
 class PlateDetectionService {
     constructor() {

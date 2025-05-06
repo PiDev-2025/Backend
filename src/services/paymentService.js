@@ -117,8 +117,8 @@ async function generatePayment(amount, trackingId) {
     amount: amount,
     accept_card: "true",
     session_timeout_secs: 1200,
-    success_link: "http://localhost:3000/booking",
-    fail_link: "http://localhost:3001/fail",
+    success_link: "https://front-end-front-office.vercel.app/booking",
+    fail_link: "https://parkini-backend.onrender.com/fail",
     developer_tracking_id: trackingId,
   };
 

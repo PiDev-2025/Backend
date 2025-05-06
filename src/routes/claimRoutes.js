@@ -29,7 +29,12 @@ const storage = new CloudinaryStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+      fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // Routes with authentication and image upload
 router.post("/claims", getUserFromToken, upload.single('image'), createClaim);

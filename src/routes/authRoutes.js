@@ -25,7 +25,7 @@ router.get(
   passport.authenticate("google", { failureRedirect: "/" }),
   (req, res) => {
     if (!req.user) {
-      return res.redirect("http://localhost:3000?error=Unauthorized");
+      return res.redirect("https://front-end-front-office.vercel.app?error=Unauthorized");
     }
 
     // Generate JWT token
@@ -43,7 +43,7 @@ router.get(
     );
 
     // Redirect to frontend with token
-    res.redirect(`http://localhost:3000/google/callback?token=${token}`);
+    res.redirect(`https://front-end-front-office.vercel.app/google/callback?token=${token}`);
   }
 );
 

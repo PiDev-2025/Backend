@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const { isValidObjectId } = require('mongoose');
 const Notification = require('../models/notificationModel'); // Assurez-vous que le chemin est correct
 const nodemailer = require('nodemailer');
+const crypto = require('crypto'); // Add crypto module
 const { getReservationConfirmationTemplate, getReservationRejectionTemplate } = require('../utils/reservationMailTemplate');
 
 
@@ -121,7 +122,7 @@ const createReservation = async (reservationData) => {
     const parking = await Parking.findById(reservationData.parkingId);
     if (!parking) {
 
-      throw new Error("Parking non trouvé");
+      
 
       throw new Error('Parking not found');
 
@@ -206,7 +207,8 @@ const getRandomRejectionReason = () => {
   
   for (let i = 0; i < 3; i++) {
     if (availableReasons.length === 0) break;
-    const randomIndex = Math.floor(Math.random() * availableReasons.length);
+    // Use cryptographically secure random number generator
+    const randomIndex = crypto.randomInt(0, availableReasons.length);
     selectedReasons.push(availableReasons[randomIndex]);
     availableReasons.splice(randomIndex, 1);
   }
@@ -242,6 +244,7 @@ async function updateReservationStatus(reservationId, newStatus, userId) {
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
+    secure: true, // Enforce SSL/TLS connection
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS

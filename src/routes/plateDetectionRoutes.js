@@ -15,7 +15,12 @@ const storage = new CloudinaryStorage({
     },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 5MB limit
+    }
+});
 
 // Health check endpoint to verify Flask API is running
 router.get('/health', async (req, res) => {

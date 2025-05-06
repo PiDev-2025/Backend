@@ -38,13 +38,15 @@ require("dotenv").config();
 const SESSION_SECRET = process.env.SESSION_SECRET || "parkini_secure_session_key_2025";
 
 connectDB();
-// Supprimer l'affichage des secrets dans les logs
-// console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
 
 // CORS Configuration
-const allowedOrigins = ["http://localhost:3000", "https://front-end-front-office.vercel.app", "https:dashboard-admin-parkiini.vercel.app", "http://localhost:5173", 
-  // Ajouter ici vos domaines de production avec HTTPS
-  "https://yourproductiondomain.com"
+const allowedOrigins = [
+  "http://localhost:3000", 
+  "https://front-end-front-office.vercel.app", 
+  "https://dashboard-admin-parkiini.vercel.app",
+  "http://localhost:5173",
+ 
 ];
 const corsOptions = {
   origin: function (origin, callback) {
