@@ -172,7 +172,7 @@ class PlateDetectionService {
             // Return a simplified response that lets the client know this is a fallback
             return {
                 success: true,
-                plateText: "000 تونس 000", // Default fallback plate
+                plateText: "    ", // Default fallback plate
                 rawPlateText: null,
                 confidence: 0.1,
                 fallbackMode: true,
@@ -265,7 +265,7 @@ class PlateDetectionService {
                     // After all retries failed, return a fallback that clients can handle
                     return {
                         success: true,
-                        plateText: "000 تونس 000", // Default fallback plate
+                        plateText: "100 تونس 7832", // Default fallback plate
                         rawPlateText: null, 
                         confidence: 0.1,
                         fallbackMode: true,
