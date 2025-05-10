@@ -201,6 +201,7 @@ app.use("/api", passwordRoutes);
 app.use('/parkings', parkingRoutes); 
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/notify', notificationRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use('/api/payments', paymentRoutes);
 

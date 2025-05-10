@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/userModel");
 const sendEmail = require("../utils/sendEmail");
 const { generateToken } = require("../utils/token");
+const subscriptionService = require("../services/subscriptionService"); // Importation du service d'abonnement
 
 // Fonction pour générer un OTP aléatoire
 const generateOTP = () =>
@@ -31,6 +32,9 @@ exports.signup = async (req, res) => {
       otpExpires,
     });
     await user.save();
+
+    // Créer un abonnement gratuit par défaut pour le nouvel utilisateur
+    await subscriptionService.createDefaultSubscription(user._id);
 
     // Utilisation de la fonction sendEmail pour envoyer le code OTP
     await sendEmail({

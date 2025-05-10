@@ -1,31 +1,5 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
-
-// Middleware pour vérifier le token
-const verifyToken = async (req, res, next) => {
-    try {
-        const token = req.header("Authorization");
-
-        console.log("Token reçu:", token); // Debugging the token received
-
-        if (!token) return res.status(401).json({ message: "Accès refusé, token manquant" });
-
-        const tokenWithoutBearer = token.replace("Bearer ", "").trim();
-        console.log("Token après nettoyage:", tokenWithoutBearer); // Debugging the cleaned token
-
-        const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET);
-        console.log("Token décodé:", decoded); // Debugging the decoded token
-
-        req.user = await User.findById(decoded.id).select("-password");
-
-        if (!req.user) return res.status(401).json({ message: "Utilisateur non trouvé" });
-
-        next();
-    } catch (error) {
-        console.error("Erreur JWT:", error.message); // Debugging the JWT error
-        res.status(401).json({ message: "Token invalide", error: error.message });
-    }
-};
+const jwt = require('jsonwebtoken');
+const User = require('../models/userModel');
 
 const verifyRole = (...roles) => {
     return (req, res, next) => {
@@ -37,4 +11,42 @@ const verifyRole = (...roles) => {
     };
 };
 
-module.exports = { verifyToken, verifyRole };
+const verifyToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+const isAdmin = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { verifyToken, isAdmin , verifyRole};

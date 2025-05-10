@@ -38,6 +38,14 @@ const reservationSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  originalPrice: {
+    type: Number,
+    required: true
+  },
+  appliedDiscount: {
+    type: Number,
+    default: 0
+  },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'rejected', 'completed', 'canceled'],
