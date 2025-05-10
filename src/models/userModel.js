@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Favorite" }],
+    typeSubscription: {
+      type: String,
+      enum: ['Free', 'Standard', 'Premium']
+    },
   },
   { timestamps: true }
 );
